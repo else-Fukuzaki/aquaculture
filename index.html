@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>養殖漁業管理システム</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🐟 養殖漁業管理システム</h1>
+            <p style="font-size: 14px; opacity: 0.9;">データ統合管理プラットフォーム</p>
+        </header>
+
+        <div class="tabs">
+            <button class="tab active" data-category="water">水質データ</button>
+            <button class="tab" data-category="environment">環境データ</button>
+            <button class="tab" data-category="biology">生物データ</button>
+            <button class="tab" data-category="operation">運営データ</button>
+            <button class="tab" data-category="economy">経済データ</button>
+        </div>
+
+        <div class="content">
+            <!-- 水質データセクション -->
+            <div id="water" class="category-section active">
+                <div class="action-buttons">
+                    <button class="btn btn-primary" onclick="showAddModal('water')">📝 データ追加</button>
+                    <button class="btn btn-success" onclick="exportData('water')">📊 CSVエクスポート</button>
+                </div>
+
+                <div class="stats-grid" id="water-stats"></div>
+                
+                <div class="chart-container">
+                    <div class="chart-title">水質データ推移</div>
+                    <canvas id="waterChart"></canvas>
+                </div>
+
+                <div class="data-table">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>日時</th>
+                                <th>水温(℃)</th>
+                                <th>塩分濃度(%)</th>
+                                <th>溶存酸素(mg/L)</th>
+                                <th>pH</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="water-table-body"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- 環境データセクション -->
+            <div id="environment" class="category-section">
+                <div class="action-buttons">
+                    <button class="btn btn-primary" onclick="showAddModal('environment')">📝 データ追加</button>
+                    <button class="btn btn-success" onclick="exportData('environment')">📊 CSVエクスポート</button>
+                </div>
+
+                <div class="stats-grid" id="environment-stats"></div>
+                
+                <div class="chart-container">
+                    <div class="chart-title">環境データ推移</div>
+                    <canvas id="environmentChart"></canvas>
+                </div>
+
+                <div class="data-table">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>日時</th>
+                                <th>気温(℃)</th>
+                                <th>湿度(%)</th>
+                                <th>風速(m/s)</th>
+                                <th>日照時間(h)</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="environment-table-body"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- 生物データセクション -->
+            <div id="biology" class="category-section">
+                <div class="action-buttons">
+                    <button class="btn btn-primary" onclick="showAddModal('biology')">📝 データ追加</button>
+                    <button class="btn btn-success" onclick="exportData('biology')">📊 CSVエクスポート</button>
+                </div>
+
+                <div class="stats-grid" id="biology-stats"></div>
+                
+                <div class="chart-container">
+                    <div class="chart-title">生物データ推移</div>
+                    <canvas id="biologyChart"></canvas>
+                </div>
+
+                <div class="data-table">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>日時</th>
+                                <th>個体数</th>
+                                <th>平均体重(g)</th>
+                                <th>摂餌量(kg)</th>
+                                <th>生存率(%)</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="biology-table-body"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- 運営データセクション -->
+            <div id="operation" class="category-section">
+                <div class="action-buttons">
+                    <button class="btn btn-primary" onclick="showAddModal('operation')">📝 データ追加</button>
+                    <button class="btn btn-success" onclick="exportData('operation')">📊 CSVエクスポート</button>
+                </div>
+
+                <div class="stats-grid" id="operation-stats"></div>
+                
+                <div class="chart-container">
+                    <div class="chart-title">運営データ推移</div>
+                    <canvas id="operationChart"></canvas>
+                </div>
+
+                <div class="data-table">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>日時</th>
+                                <th>給餌回数</th>
+                                <th>給餌量(kg)</th>
+                                <th>作業時間(h)</th>
+                                <th>人員数</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="operation-table-body"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- 経済データセクション -->
+            <div id="economy" class="category-section">
+                <div class="action-buttons">
+                    <button class="btn btn-primary" onclick="showAddModal('economy')">📝 データ追加</button>
+                    <button class="btn btn-success" onclick="exportData('economy')">📊 CSVエクスポート</button>
+                </div>
+
+                <div class="stats-grid" id="economy-stats"></div>
+                
+                <div class="chart-container">
+                    <div class="chart-title">経済データ推移</div>
+                    <canvas id="economyChart"></canvas>
+                </div>
+
+                <div class="data-table">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>日時</th>
+                                <th>餌代(円)</th>
+                                <th>光熱費(円)</th>
+                                <th>人件費(円)</th>
+                                <th>売上(円)</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="economy-table-body"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- データ追加モーダル -->
+    <div id="addModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">データ追加</div>
+            <form id="addForm">
+                <div id="formFields"></div>
+                <div style="display: flex; gap: 10px; margin-top: 20px;">
+                    <button type="submit" class="btn btn-primary" style="flex: 1;">保存</button>
+                    <button type="button" class="btn btn-danger" onclick="closeModal()" style="flex: 1;">キャンセル</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 編集モーダル -->
+    <div id="editModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">データ編集</div>
+            <form id="editForm">
+                <div id="editFormFields"></div>
+                <div style="display: flex; gap: 10px; margin-top: 20px;">
+                    <button type="submit" class="btn btn-primary" style="flex: 1;">更新</button>
+                    <button type="button" class="btn btn-danger" onclick="closeEditModal()" style="flex: 1;">キャンセル</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
