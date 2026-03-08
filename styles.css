@@ -32,6 +32,11 @@ header h1 {
     margin-bottom: 10px;
 }
 
+.header-subtitle {
+    font-size: 14px;
+    opacity: 0.9;
+}
+
 .tabs {
     display: flex;
     background: #f8f9fa;
@@ -342,6 +347,36 @@ tr:hover {
     font-size: 48px;
     margin-bottom: 20px;
     opacity: 0.5;
+}
+
+.modal-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 20px;
+}
+
+.pagination {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    margin-top: 15px;
+    padding: 10px 0;
+}
+
+.pagination-btn {
+    background: #1e3c72;
+    color: white;
+}
+
+.pagination-btn:disabled {
+    background: #adb5bd;
+    cursor: not-allowed;
+}
+
+.pagination-info {
+    font-size: 14px;
+    color: #6c757d;
 }
 
 /* 写真キャプチャ */

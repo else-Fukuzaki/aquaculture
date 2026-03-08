@@ -58,11 +58,40 @@ let charts = {};
 // 現在選択中の写真データ (base64)
 let currentPhotoData = { add: null, edit: null };
 
+// ページネーション状態
+const currentPage = { water: 1, environment: 1, biology: 1, operation: 1, economy: 1 };
+const PAGE_SIZE = 20;
+
+// HTMLエスケープ
+function escapeHtml(str) {
+    if (typeof str !== 'string') return str;
+    return str
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+// CSVセルエスケープ（RFC 4180）
+function escapeCSVCell(value) {
+    const str = String(value ?? '');
+    if (str.includes(',') || str.includes('\n') || str.includes('"')) {
+        return '"' + str.replace(/"/g, '""') + '"';
+    }
+    return str;
+}
+
 // ローカルストレージからデータを読み込み
 function loadData() {
     const saved = localStorage.getItem('aquacultureData');
     if (saved) {
-        dataStore = JSON.parse(saved);
+        try {
+            dataStore = JSON.parse(saved);
+        } catch (e) {
+            // パース失敗時はサンプルデータで初期化
+            generateSampleData();
+        }
     } else {
         // サンプルデータを生成
         generateSampleData();
@@ -161,27 +190,42 @@ function renderAllData() {
     });
 }
 
+// カテゴリのテーブル・チャート・統計をまとめて再描画
+function renderCategory(category) {
+    renderTable(category);
+    renderChart(category);
+    renderStats(category);
+}
+
 // テーブルをレンダリング
 function renderTable(category) {
     const tbody = document.getElementById(`${category}-table-body`);
     const data = dataStore[category];
-    const nonImageFields = dataFields[category].filter(f => f.type !== 'image').slice(0, 4);
+    const nonImageFields = dataFields[category].filter(f => f.type !== 'image');
     const imageFields = dataFields[category].filter(f => f.type === 'image');
-    const numCols = 1 + nonImageFields.length + imageFields.length + 1;
+    const totalCols = 1 + nonImageFields.length + imageFields.length + 1; // 日時 + 通常フィールド + 写真 + 操作
 
     if (data.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="${numCols}" style="text-align: center; padding: 40px;">データがありません</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="${totalCols}" style="text-align: center; padding: 40px;">データがありません</td></tr>`;
+        renderPagination(category, 0);
         return;
     }
 
-    tbody.innerHTML = data.slice().reverse().map(item => {
+    const reversed = data.slice().reverse();
+    const totalPages = Math.ceil(reversed.length / PAGE_SIZE);
+    // ページ番号が範囲外にならないよう補正
+    if (currentPage[category] > totalPages) currentPage[category] = totalPages;
+    const start = (currentPage[category] - 1) * PAGE_SIZE;
+    const pageData = reversed.slice(start, start + PAGE_SIZE);
+
+    tbody.innerHTML = pageData.map(item => {
         const date = new Date(item.timestamp);
         const dateStr = `${date.getMonth()+1}/${date.getDate()} ${String(date.getHours()).padStart(2,'0')}:${String(date.getMinutes()).padStart(2,'0')}`;
 
-        let cells = `<td>${dateStr}</td>`;
+        let cells = `<td>${escapeHtml(dateStr)}</td>`;
         nonImageFields.forEach(field => {
             const value = item[field.name];
-            cells += `<td>${value !== undefined && value !== null ? value : '-'}</td>`;
+            cells += `<td>${value !== undefined && value !== null ? escapeHtml(String(value)) : '-'}</td>`;
         });
         imageFields.forEach(field => {
             if (item[field.name]) {
@@ -195,12 +239,41 @@ function renderTable(category) {
             <tr>
                 ${cells}
                 <td>
-                    <button class="btn btn-warning btn-small" onclick="editData('${category}', '${item.id}')">編集</button>
-                    <button class="btn btn-danger btn-small" onclick="deleteData('${category}', '${item.id}')">削除</button>
+                    <button class="btn btn-warning btn-small" onclick="editData('${escapeHtml(category)}', ${Number(item.id)})">編集</button>
+                    <button class="btn btn-danger btn-small" onclick="deleteData('${escapeHtml(category)}', ${Number(item.id)})">削除</button>
                 </td>
             </tr>
         `;
     }).join('');
+
+    renderPagination(category, reversed.length);
+}
+
+// ページネーションUIをレンダリング
+function renderPagination(category, totalItems) {
+    const container = document.getElementById(`${category}-pagination`);
+    if (!container) return;
+
+    const totalPages = Math.ceil(totalItems / PAGE_SIZE);
+    if (totalPages <= 1) {
+        container.innerHTML = '';
+        return;
+    }
+
+    const page = currentPage[category];
+    container.innerHTML = `
+        <button class="btn btn-small pagination-btn" onclick="changePage('${category}', ${page - 1})" ${page <= 1 ? 'disabled' : ''}>前へ</button>
+        <span class="pagination-info">${page} / ${totalPages} ページ（全${totalItems}件）</span>
+        <button class="btn btn-small pagination-btn" onclick="changePage('${category}', ${page + 1})" ${page >= totalPages ? 'disabled' : ''}>次へ</button>
+    `;
+}
+
+// ページを変更
+function changePage(category, page) {
+    const totalPages = Math.ceil(dataStore[category].length / PAGE_SIZE);
+    if (page < 1 || page > totalPages) return;
+    currentPage[category] = page;
+    renderTable(category);
 }
 
 // チャートをレンダリング
@@ -279,7 +352,7 @@ function renderStats(category) {
         return;
     }
 
-    const fields = dataFields[category].slice(0, 4);
+    const fields = dataFields[category];
     const stats = fields.map(field => {
         const values = data.map(item => item[field.name]).filter(v => v !== undefined && v !== null && !isNaN(v));
         if (values.length === 0) return null;
@@ -296,9 +369,9 @@ function renderStats(category) {
 
     statsDiv.innerHTML = stats.map(stat => `
         <div class="stat-card">
-            <div class="stat-label">${stat.label}</div>
-            <div class="stat-value">${stat.value}</div>
-            <div class="stat-label">平均: ${stat.avg}</div>
+            <div class="stat-label">${escapeHtml(stat.label)}</div>
+            <div class="stat-value">${escapeHtml(String(stat.value))}</div>
+            <div class="stat-label">平均: ${escapeHtml(String(stat.avg))}</div>
         </div>
     `).join('');
 }
@@ -375,9 +448,7 @@ function addData(category) {
 
     dataStore[category].push(newData);
     saveData();
-    renderTable(category);
-    renderChart(category);
-    renderStats(category);
+    renderCategory(category);
     closeModal();
     
     showAlert('success', 'データを追加しました');
@@ -465,9 +536,7 @@ function updateData(category, id) {
     });
 
     saveData();
-    renderTable(category);
-    renderChart(category);
-    renderStats(category);
+    renderCategory(category);
     closeEditModal();
     
     showAlert('success', 'データを更新しました');
@@ -479,9 +548,7 @@ function deleteData(category, id) {
 
     dataStore[category] = dataStore[category].filter(d => d.id != id);
     saveData();
-    renderTable(category);
-    renderChart(category);
-    renderStats(category);
+    renderCategory(category);
     
     showAlert('success', 'データを削除しました');
 }
@@ -502,7 +569,7 @@ function exportData(category) {
         ];
     });
 
-    const csv = [headers, ...rows].map(row => row.join(',')).join('\n');
+    const csv = [headers, ...rows].map(row => row.map(escapeCSVCell).join(',')).join('\n');
     const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);

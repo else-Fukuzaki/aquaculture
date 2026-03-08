@@ -10,7 +10,7 @@
     <div class="container">
         <header>
             <h1>🐟 養殖漁業管理システム</h1>
-            <p style="font-size: 14px; opacity: 0.9;">データ統合管理プラットフォーム</p>
+            <p class="header-subtitle">データ統合管理プラットフォーム</p>
         </header>
 
         <div class="tabs">
@@ -45,12 +45,15 @@
                                 <th>塩分濃度(%)</th>
                                 <th>溶存酸素(mg/L)</th>
                                 <th>pH</th>
+                                <th>濁度(NTU)</th>
+                                <th>アンモニア(mg/L)</th>
                                 <th>操作</th>
                             </tr>
                         </thead>
                         <tbody id="water-table-body"></tbody>
                     </table>
                 </div>
+                <div id="water-pagination" class="pagination"></div>
             </div>
 
             <!-- 環境データセクション -->
@@ -76,12 +79,15 @@
                                 <th>湿度(%)</th>
                                 <th>風速(m/s)</th>
                                 <th>日照時間(h)</th>
+                                <th>降水量(mm)</th>
+                                <th>波高(m)</th>
                                 <th>操作</th>
                             </tr>
                         </thead>
                         <tbody id="environment-table-body"></tbody>
                     </table>
                 </div>
+                <div id="environment-pagination" class="pagination"></div>
             </div>
 
             <!-- 生物データセクション -->
@@ -107,6 +113,8 @@
                                 <th>平均体重(g)</th>
                                 <th>摂餌量(kg)</th>
                                 <th>生存率(%)</th>
+                                <th>死亡数</th>
+                                <th>疾病発生数</th>
                                 <th>写真</th>
                                 <th>操作</th>
                             </tr>
@@ -114,6 +122,7 @@
                         <tbody id="biology-table-body"></tbody>
                     </table>
                 </div>
+                <div id="biology-pagination" class="pagination"></div>
             </div>
 
             <!-- 運営データセクション -->
@@ -139,12 +148,15 @@
                                 <th>給餌量(kg)</th>
                                 <th>作業時間(h)</th>
                                 <th>人員数</th>
+                                <th>薬剤使用(有無)</th>
+                                <th>収穫量(kg)</th>
                                 <th>操作</th>
                             </tr>
                         </thead>
                         <tbody id="operation-table-body"></tbody>
                     </table>
                 </div>
+                <div id="operation-pagination" class="pagination"></div>
             </div>
 
             <!-- 経済データセクション -->
@@ -169,6 +181,8 @@
                                 <th>餌代(円)</th>
                                 <th>光熱費(円)</th>
                                 <th>人件費(円)</th>
+                                <th>薬剤費(円)</th>
+                                <th>設備維持費(円)</th>
                                 <th>売上(円)</th>
                                 <th>操作</th>
                             </tr>
@@ -176,6 +190,7 @@
                         <tbody id="economy-table-body"></tbody>
                     </table>
                 </div>
+                <div id="economy-pagination" class="pagination"></div>
             </div>
         </div>
     </div>
@@ -186,7 +201,7 @@
             <div class="modal-header">データ追加</div>
             <form id="addForm">
                 <div id="formFields"></div>
-                <div style="display: flex; gap: 10px; margin-top: 20px;">
+                <div class="modal-actions">
                     <button type="submit" class="btn btn-primary" style="flex: 1;">保存</button>
                     <button type="button" class="btn btn-danger" onclick="closeModal()" style="flex: 1;">キャンセル</button>
                 </div>
@@ -200,7 +215,7 @@
             <div class="modal-header">データ編集</div>
             <form id="editForm">
                 <div id="editFormFields"></div>
-                <div style="display: flex; gap: 10px; margin-top: 20px;">
+                <div class="modal-actions">
                     <button type="submit" class="btn btn-primary" style="flex: 1;">更新</button>
                     <button type="button" class="btn btn-danger" onclick="closeEditModal()" style="flex: 1;">キャンセル</button>
                 </div>
