@@ -1,4 +1,4 @@
-// データストレージ
+// データストレージ（SQLiteのキャッシュ）
 let dataStore = {
     water: [],
     environment: [],
@@ -6,6 +6,9 @@ let dataStore = {
     operation: [],
     economy: []
 };
+
+// SQLiteデータベースインスタンス
+let db = null;
 
 // データフィールド定義
 const dataFields = {
@@ -82,100 +85,157 @@ function escapeCSVCell(value) {
     return str;
 }
 
-// ローカルストレージからデータを読み込み
-function loadData() {
-    const saved = localStorage.getItem('aquacultureData');
+// Uint8Array → Base64
+function uint8ArrayToBase64(arr) {
+    let binary = '';
+    for (let i = 0; i < arr.length; i++) {
+        binary += String.fromCharCode(arr[i]);
+    }
+    return btoa(binary);
+}
+
+// テーブル作成（IF NOT EXISTS で冪等）
+function createTables() {
+    db.run(`CREATE TABLE IF NOT EXISTS water (
+        id REAL PRIMARY KEY, timestamp TEXT,
+        temperature REAL, salinity REAL, oxygen REAL, ph REAL, turbidity REAL, ammonia REAL
+    )`);
+    db.run(`CREATE TABLE IF NOT EXISTS environment (
+        id REAL PRIMARY KEY, timestamp TEXT,
+        airTemp REAL, humidity REAL, windSpeed REAL, sunlight REAL, rainfall REAL, waveHeight REAL
+    )`);
+    db.run(`CREATE TABLE IF NOT EXISTS biology (
+        id REAL PRIMARY KEY, timestamp TEXT,
+        count REAL, avgWeight REAL, feedAmount REAL, survivalRate REAL,
+        mortality REAL, diseaseCount REAL, photo TEXT
+    )`);
+    db.run(`CREATE TABLE IF NOT EXISTS operation (
+        id REAL PRIMARY KEY, timestamp TEXT,
+        feedTimes REAL, feedAmount REAL, workHours REAL, workers REAL,
+        medicineUsed TEXT, harvestAmount REAL
+    )`);
+    db.run(`CREATE TABLE IF NOT EXISTS economy (
+        id REAL PRIMARY KEY, timestamp TEXT,
+        feedCost REAL, utilityCost REAL, laborCost REAL,
+        medicineCost REAL, maintenanceCost REAL, revenue REAL
+    )`);
+}
+
+// SQLiteからカテゴリデータを読み込んで配列で返す
+function loadCategory(category) {
+    const fields = ['id', 'timestamp', ...dataFields[category].map(f => f.name)];
+    const result = db.exec(`SELECT ${fields.join(', ')} FROM ${category} ORDER BY timestamp ASC`);
+    if (!result.length) return [];
+    const cols = result[0].columns;
+    return result[0].values.map(row => {
+        const obj = {};
+        cols.forEach((col, i) => { obj[col] = row[i]; });
+        return obj;
+    });
+}
+
+// すべてのカテゴリをdataStoreに再読み込み
+function reloadAllCategories() {
+    Object.keys(dataStore).forEach(cat => {
+        dataStore[cat] = loadCategory(cat);
+    });
+}
+
+// 1カテゴリをdataStoreに再読み込み
+function reloadDataStoreCategory(category) {
+    dataStore[category] = loadCategory(category);
+}
+
+// SQLiteをlocalStorageに保存
+function saveDB() {
+    const data = db.export();
+    localStorage.setItem('aquacultureDB', uint8ArrayToBase64(data));
+}
+
+// データベースを初期化（非同期）
+async function initDB() {
+    const SQL = await initSqlJs({
+        locateFile: file => `https://cdn.jsdelivr.net/npm/sql.js@1.10.2/dist/${file}`
+    });
+
+    const saved = localStorage.getItem('aquacultureDB');
     if (saved) {
         try {
-            dataStore = JSON.parse(saved);
+            const binary = atob(saved);
+            const buf = new Uint8Array(binary.length);
+            for (let i = 0; i < binary.length; i++) buf[i] = binary.charCodeAt(i);
+            db = new SQL.Database(buf);
+            createTables(); // 新テーブルが増えた場合への対応
         } catch (e) {
-            // パース失敗時はサンプルデータで初期化
+            db = new SQL.Database();
+            createTables();
             generateSampleData();
         }
     } else {
-        // サンプルデータを生成
+        db = new SQL.Database();
+        createTables();
         generateSampleData();
     }
-    renderAllData();
-}
 
-// データを保存
-function saveData() {
-    localStorage.setItem('aquacultureData', JSON.stringify(dataStore));
+    reloadAllCategories();
+    renderAllData();
 }
 
 // サンプルデータ生成
 function generateSampleData() {
     const now = new Date();
+    let idBase = Date.now();
+
     for (let i = 30; i >= 0; i--) {
         const date = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
-        
-        dataStore.water.push({
-            id: Date.now() + Math.random(),
-            timestamp: date.toISOString(),
-            temperature: 18 + Math.random() * 4,
-            salinity: 3.2 + Math.random() * 0.3,
-            oxygen: 6 + Math.random() * 2,
-            ph: 7.5 + Math.random() * 0.5,
-            turbidity: 2 + Math.random() * 3,
-            ammonia: 0.1 + Math.random() * 0.2
-        });
+        const ts = date.toISOString();
 
-        dataStore.environment.push({
-            id: Date.now() + Math.random(),
-            timestamp: date.toISOString(),
-            airTemp: 20 + Math.random() * 5,
-            humidity: 60 + Math.random() * 20,
-            windSpeed: 2 + Math.random() * 5,
-            sunlight: 5 + Math.random() * 5,
-            rainfall: Math.random() * 10,
-            waveHeight: 0.5 + Math.random() * 1
-        });
+        db.run('INSERT INTO water VALUES (?, ?, ?, ?, ?, ?, ?, ?)', [
+            ++idBase, ts,
+            18 + Math.random() * 4, 3.2 + Math.random() * 0.3,
+            6 + Math.random() * 2, 7.5 + Math.random() * 0.5,
+            2 + Math.random() * 3, 0.1 + Math.random() * 0.2
+        ]);
 
-        dataStore.biology.push({
-            id: Date.now() + Math.random(),
-            timestamp: date.toISOString(),
-            count: 10000 - Math.floor(Math.random() * 100),
-            avgWeight: 50 + i * 2 + Math.random() * 10,
-            feedAmount: 80 + Math.random() * 20,
-            survivalRate: 95 + Math.random() * 4,
-            mortality: Math.floor(Math.random() * 10),
-            diseaseCount: Math.floor(Math.random() * 3)
-        });
+        db.run('INSERT INTO environment VALUES (?, ?, ?, ?, ?, ?, ?, ?)', [
+            ++idBase, ts,
+            20 + Math.random() * 5, 60 + Math.random() * 20,
+            2 + Math.random() * 5, 5 + Math.random() * 5,
+            Math.random() * 10, 0.5 + Math.random() * 1
+        ]);
 
-        dataStore.operation.push({
-            id: Date.now() + Math.random(),
-            timestamp: date.toISOString(),
-            feedTimes: 3,
-            feedAmount: 80 + Math.random() * 20,
-            workHours: 6 + Math.random() * 3,
-            workers: 3 + Math.floor(Math.random() * 2),
-            medicineUsed: ['なし', 'なし', '抗生物質'][Math.floor(Math.random() * 3)],
-            harvestAmount: Math.random() > 0.8 ? 100 + Math.random() * 50 : 0
-        });
+        db.run('INSERT INTO biology VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)', [
+            ++idBase, ts,
+            10000 - Math.floor(Math.random() * 100), 50 + i * 2 + Math.random() * 10,
+            80 + Math.random() * 20, 95 + Math.random() * 4,
+            Math.floor(Math.random() * 10), Math.floor(Math.random() * 3), null
+        ]);
 
-        dataStore.economy.push({
-            id: Date.now() + Math.random(),
-            timestamp: date.toISOString(),
-            feedCost: 30000 + Math.random() * 10000,
-            utilityCost: 10000 + Math.random() * 5000,
-            laborCost: 50000 + Math.random() * 10000,
-            medicineCost: Math.random() * 5000,
-            maintenanceCost: 5000 + Math.random() * 5000,
-            revenue: Math.random() > 0.8 ? 200000 + Math.random() * 100000 : 0
-        });
+        db.run('INSERT INTO operation VALUES (?, ?, ?, ?, ?, ?, ?, ?)', [
+            ++idBase, ts,
+            3, 80 + Math.random() * 20, 6 + Math.random() * 3,
+            3 + Math.floor(Math.random() * 2),
+            ['なし', 'なし', '抗生物質'][Math.floor(Math.random() * 3)],
+            Math.random() > 0.8 ? 100 + Math.random() * 50 : 0
+        ]);
+
+        db.run('INSERT INTO economy VALUES (?, ?, ?, ?, ?, ?, ?, ?)', [
+            ++idBase, ts,
+            30000 + Math.random() * 10000, 10000 + Math.random() * 5000,
+            50000 + Math.random() * 10000, Math.random() * 5000,
+            5000 + Math.random() * 5000,
+            Math.random() > 0.8 ? 200000 + Math.random() * 100000 : 0
+        ]);
     }
-    saveData();
+    saveDB();
 }
 
 // タブ切り替え
 document.querySelectorAll('.tab').forEach(tab => {
     tab.addEventListener('click', function() {
         const category = this.dataset.category;
-        
         document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
         document.querySelectorAll('.category-section').forEach(s => s.classList.remove('active'));
-        
         this.classList.add('active');
         document.getElementById(category).classList.add('active');
     });
@@ -203,7 +263,7 @@ function renderTable(category) {
     const data = dataStore[category];
     const nonImageFields = dataFields[category].filter(f => f.type !== 'image');
     const imageFields = dataFields[category].filter(f => f.type === 'image');
-    const totalCols = 1 + nonImageFields.length + imageFields.length + 1; // 日時 + 通常フィールド + 写真 + 操作
+    const totalCols = 1 + nonImageFields.length + imageFields.length + 1;
 
     if (data.length === 0) {
         tbody.innerHTML = `<tr><td colspan="${totalCols}" style="text-align: center; padding: 40px;">データがありません</td></tr>`;
@@ -213,7 +273,6 @@ function renderTable(category) {
 
     const reversed = data.slice().reverse();
     const totalPages = Math.ceil(reversed.length / PAGE_SIZE);
-    // ページ番号が範囲外にならないよう補正
     if (currentPage[category] > totalPages) currentPage[category] = totalPages;
     const start = (currentPage[category] - 1) * PAGE_SIZE;
     const pageData = reversed.slice(start, start + PAGE_SIZE);
@@ -280,10 +339,9 @@ function changePage(category, page) {
 function renderChart(category) {
     const canvas = document.getElementById(`${category}Chart`);
     const data = dataStore[category];
-    
+
     if (data.length === 0) return;
 
-    // 既存のチャートを破棄
     if (charts[category]) {
         charts[category].destroy();
     }
@@ -301,7 +359,6 @@ function renderChart(category) {
             'rgba(118, 75, 162, 0.8)',
             'rgba(40, 167, 69, 0.8)'
         ];
-        
         return {
             label: field.label,
             data: sortedData.map(item => item[field.name]),
@@ -324,19 +381,11 @@ function renderChart(category) {
                     position: 'bottom',
                     labels: { padding: 15, font: { size: 11 } }
                 },
-                tooltip: {
-                    mode: 'index',
-                    intersect: false
-                }
+                tooltip: { mode: 'index', intersect: false }
             },
             scales: {
-                y: {
-                    beginAtZero: false,
-                    grid: { color: 'rgba(0,0,0,0.05)' }
-                },
-                x: {
-                    grid: { display: false }
-                }
+                y: { beginAtZero: false, grid: { color: 'rgba(0,0,0,0.05)' } },
+                x: { grid: { display: false } }
             }
         }
     });
@@ -346,7 +395,7 @@ function renderChart(category) {
 function renderStats(category) {
     const statsDiv = document.getElementById(`${category}-stats`);
     const data = dataStore[category];
-    
+
     if (data.length === 0) {
         statsDiv.innerHTML = '';
         return;
@@ -356,10 +405,8 @@ function renderStats(category) {
     const stats = fields.map(field => {
         const values = data.map(item => item[field.name]).filter(v => v !== undefined && v !== null && !isNaN(v));
         if (values.length === 0) return null;
-        
         const avg = values.reduce((a, b) => a + b, 0) / values.length;
         const latest = data[data.length - 1][field.name];
-        
         return {
             label: field.label,
             value: typeof latest === 'number' ? latest.toFixed(1) : latest,
@@ -430,27 +477,29 @@ function showAddModal(category) {
     };
 }
 
-// データを追加
+// データを追加（SQLite INSERT）
 function addData(category) {
-    const newData = {
-        id: Date.now() + Math.random(),
-        timestamp: document.getElementById('add-timestamp').value
-    };
+    const id = Date.now() + Math.random();
+    const timestamp = document.getElementById('add-timestamp').value;
+    const fields = ['id', 'timestamp', ...dataFields[category].map(f => f.name)];
+    const values = [id, timestamp];
 
     dataFields[category].forEach(field => {
         if (field.type === 'image') {
-            newData[field.name] = currentPhotoData.add || null;
+            values.push(currentPhotoData.add || null);
         } else {
             const input = document.getElementById(`add-${field.name}`);
-            newData[field.name] = field.type === 'number' ? parseFloat(input.value) : input.value;
+            values.push(field.type === 'number' ? parseFloat(input.value) : input.value);
         }
     });
 
-    dataStore[category].push(newData);
-    saveData();
+    const placeholders = fields.map(() => '?').join(', ');
+    db.run(`INSERT INTO ${category} (${fields.join(', ')}) VALUES (${placeholders})`, values);
+    saveDB();
+
+    reloadDataStoreCategory(category);
     renderCategory(category);
     closeModal();
-    
     showAlert('success', 'データを追加しました');
 }
 
@@ -459,7 +508,6 @@ function editData(category, id) {
     currentPhotoData.edit = null;
     const modal = document.getElementById('editModal');
     const item = dataStore[category].find(d => d.id == id);
-
     if (!item) return;
 
     const formFields = document.getElementById('editFormFields');
@@ -516,40 +564,44 @@ function editData(category, id) {
     };
 }
 
-// データを更新
+// データを更新（SQLite UPDATE）
 function updateData(category, id) {
-    const index = dataStore[category].findIndex(d => d.id == id);
-    if (index === -1) return;
-
-    dataStore[category][index].timestamp = document.getElementById('edit-timestamp').value;
+    const timestamp = document.getElementById('edit-timestamp').value;
+    const setClauses = ['timestamp = ?'];
+    const values = [timestamp];
 
     dataFields[category].forEach(field => {
         if (field.type === 'image') {
             if (currentPhotoData.edit !== null) {
-                dataStore[category][index][field.name] = currentPhotoData.edit;
+                setClauses.push(`${field.name} = ?`);
+                values.push(currentPhotoData.edit);
             }
-            // 新しい写真が選択されていない場合は既存を保持
         } else {
             const input = document.getElementById(`edit-${field.name}`);
-            dataStore[category][index][field.name] = field.type === 'number' ? parseFloat(input.value) : input.value;
+            setClauses.push(`${field.name} = ?`);
+            values.push(field.type === 'number' ? parseFloat(input.value) : input.value);
         }
     });
 
-    saveData();
+    values.push(id);
+    db.run(`UPDATE ${category} SET ${setClauses.join(', ')} WHERE id = ?`, values);
+    saveDB();
+
+    reloadDataStoreCategory(category);
     renderCategory(category);
     closeEditModal();
-    
     showAlert('success', 'データを更新しました');
 }
 
-// データを削除
+// データを削除（SQLite DELETE）
 function deleteData(category, id) {
     if (!confirm('このデータを削除してもよろしいですか?')) return;
 
-    dataStore[category] = dataStore[category].filter(d => d.id != id);
-    saveData();
+    db.run(`DELETE FROM ${category} WHERE id = ?`, [id]);
+    saveDB();
+
+    reloadDataStoreCategory(category);
     renderCategory(category);
-    
     showAlert('success', 'データを削除しました');
 }
 
@@ -575,7 +627,7 @@ function exportData(category) {
     link.href = URL.createObjectURL(blob);
     link.download = `${category}_data_${new Date().toISOString().slice(0, 10)}.csv`;
     link.click();
-    
+
     showAlert('success', 'CSVファイルをエクスポートしました');
 }
 
@@ -599,9 +651,9 @@ function showAlert(type, message) {
     alertDiv.style.zIndex = '2000';
     alertDiv.style.minWidth = '250px';
     alertDiv.style.animation = 'slideInRight 0.3s';
-    
+
     document.body.appendChild(alertDiv);
-    
+
     setTimeout(() => {
         alertDiv.style.animation = 'slideOutRight 0.3s';
         setTimeout(() => alertDiv.remove(), 300);
@@ -671,5 +723,5 @@ document.getElementById('photoModal').addEventListener('click', function(e) {
     if (e.target === this) closePhotoModal();
 });
 
-// 初期化
-loadData();
+// 初期化（sql.js WASMロードのため非同期）
+initDB();
