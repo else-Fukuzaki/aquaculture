@@ -393,20 +393,20 @@ tr:hover {
 .photo-capture-btn {
     display: inline-block;
     padding: 12px 20px;
-    background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
-    color: white;
+    background: #4fc3f7;
+    color: #0d2137 !important;
     border-radius: 8px;
     cursor: pointer;
     text-align: center;
     font-size: 14px;
-    font-weight: 500;
+    font-weight: 700;
     transition: all 0.3s;
 }
 
 .photo-capture-btn:hover {
-    background: linear-gradient(135deg, #2a5298 0%, #1e3c72 100%);
+    background: #29b6f6;
     transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(30, 60, 114, 0.3);
+    box-shadow: 0 4px 12px rgba(79, 195, 247, 0.4);
 }
 
 .photo-preview-area {
