@@ -343,3 +343,64 @@ tr:hover {
     margin-bottom: 20px;
     opacity: 0.5;
 }
+
+/* 写真キャプチャ */
+.photo-capture-area {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.photo-file-input {
+    display: none;
+}
+
+.photo-capture-btn {
+    display: inline-block;
+    padding: 12px 20px;
+    background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+    color: white;
+    border-radius: 8px;
+    cursor: pointer;
+    text-align: center;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.3s;
+}
+
+.photo-capture-btn:hover {
+    background: linear-gradient(135deg, #2a5298 0%, #1e3c72 100%);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(30, 60, 114, 0.3);
+}
+
+.photo-preview-area {
+    min-height: 10px;
+}
+
+.photo-preview-img {
+    max-width: 100%;
+    max-height: 200px;
+    border-radius: 8px;
+    border: 2px solid #dee2e6;
+    object-fit: cover;
+    display: block;
+}
+
+/* テーブル内サムネイル */
+.photo-thumbnail {
+    width: 56px;
+    height: 56px;
+    object-fit: cover;
+    border-radius: 6px;
+    cursor: pointer;
+    border: 2px solid #dee2e6;
+    transition: all 0.2s;
+    display: block;
+}
+
+.photo-thumbnail:hover {
+    border-color: #1e3c72;
+    transform: scale(1.08);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}

@@ -31,7 +31,8 @@ const dataFields = {
         { name: 'feedAmount', label: '摂餌量(kg)', type: 'number', step: '0.1' },
         { name: 'survivalRate', label: '生存率(%)', type: 'number', step: '0.1' },
         { name: 'mortality', label: '死亡数', type: 'number', step: '1' },
-        { name: 'diseaseCount', label: '疾病発生数', type: 'number', step: '1' }
+        { name: 'diseaseCount', label: '疾病発生数', type: 'number', step: '1' },
+        { name: 'photo', label: '個体写真', type: 'image' }
     ],
     operation: [
         { name: 'feedTimes', label: '給餌回数', type: 'number', step: '1' },
@@ -53,6 +54,9 @@ const dataFields = {
 
 // チャートインスタンス
 let charts = {};
+
+// 現在選択中の写真データ (base64)
+let currentPhotoData = { add: null, edit: null };
 
 // ローカルストレージからデータを読み込み
 function loadData() {
@@ -161,23 +165,32 @@ function renderAllData() {
 function renderTable(category) {
     const tbody = document.getElementById(`${category}-table-body`);
     const data = dataStore[category];
-    
+    const nonImageFields = dataFields[category].filter(f => f.type !== 'image').slice(0, 4);
+    const imageFields = dataFields[category].filter(f => f.type === 'image');
+    const numCols = 1 + nonImageFields.length + imageFields.length + 1;
+
     if (data.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 40px;">データがありません</td></tr>';
+        tbody.innerHTML = `<tr><td colspan="${numCols}" style="text-align: center; padding: 40px;">データがありません</td></tr>`;
         return;
     }
 
     tbody.innerHTML = data.slice().reverse().map(item => {
         const date = new Date(item.timestamp);
         const dateStr = `${date.getMonth()+1}/${date.getDate()} ${String(date.getHours()).padStart(2,'0')}:${String(date.getMinutes()).padStart(2,'0')}`;
-        
+
         let cells = `<td>${dateStr}</td>`;
-        const fields = dataFields[category].slice(0, 4);
-        fields.forEach(field => {
+        nonImageFields.forEach(field => {
             const value = item[field.name];
             cells += `<td>${value !== undefined && value !== null ? value : '-'}</td>`;
         });
-        
+        imageFields.forEach(field => {
+            if (item[field.name]) {
+                cells += `<td><img src="${item[field.name]}" class="photo-thumbnail" onclick="viewPhotoById('${item.id}', '${field.name}', '${category}')" alt="個体写真" /></td>`;
+            } else {
+                cells += `<td style="color:#ccc; text-align:center;">-</td>`;
+            }
+        });
+
         return `
             <tr>
                 ${cells}
@@ -292,9 +305,10 @@ function renderStats(category) {
 
 // データ追加モーダルを表示
 function showAddModal(category) {
+    currentPhotoData.add = null;
     const modal = document.getElementById('addModal');
     const formFields = document.getElementById('formFields');
-    
+
     formFields.innerHTML = `
         <div class="form-group">
             <label>日時</label>
@@ -310,6 +324,20 @@ function showAddModal(category) {
                     </select>
                 </div>
             `;
+        } else if (field.type === 'image') {
+            return `
+                <div class="form-group">
+                    <label>${field.label}</label>
+                    <div class="photo-capture-area">
+                        <input type="file" id="add-${field.name}" accept="image/*" capture="environment"
+                            class="photo-file-input" onchange="handlePhotoSelect(event, 'add')">
+                        <label for="add-${field.name}" class="photo-capture-btn">
+                            📷 写真を撮影 / ギャラリーから選択
+                        </label>
+                        <div id="add-photo-preview" class="photo-preview-area"></div>
+                    </div>
+                </div>
+            `;
         } else {
             return `
                 <div class="form-group">
@@ -321,7 +349,7 @@ function showAddModal(category) {
     }).join('');
 
     modal.classList.add('active');
-    
+
     const form = document.getElementById('addForm');
     form.onsubmit = (e) => {
         e.preventDefault();
@@ -337,8 +365,12 @@ function addData(category) {
     };
 
     dataFields[category].forEach(field => {
-        const input = document.getElementById(`add-${field.name}`);
-        newData[field.name] = field.type === 'number' ? parseFloat(input.value) : input.value;
+        if (field.type === 'image') {
+            newData[field.name] = currentPhotoData.add || null;
+        } else {
+            const input = document.getElementById(`add-${field.name}`);
+            newData[field.name] = field.type === 'number' ? parseFloat(input.value) : input.value;
+        }
     });
 
     dataStore[category].push(newData);
@@ -353,14 +385,15 @@ function addData(category) {
 
 // 編集モーダルを表示
 function editData(category, id) {
+    currentPhotoData.edit = null;
     const modal = document.getElementById('editModal');
     const item = dataStore[category].find(d => d.id == id);
-    
+
     if (!item) return;
 
     const formFields = document.getElementById('editFormFields');
     const timestamp = new Date(item.timestamp).toISOString().slice(0, 16);
-    
+
     formFields.innerHTML = `
         <div class="form-group">
             <label>日時</label>
@@ -376,6 +409,23 @@ function editData(category, id) {
                     </select>
                 </div>
             `;
+        } else if (field.type === 'image') {
+            const existing = item[field.name];
+            return `
+                <div class="form-group">
+                    <label>${field.label}</label>
+                    <div class="photo-capture-area">
+                        <input type="file" id="edit-${field.name}" accept="image/*" capture="environment"
+                            class="photo-file-input" onchange="handlePhotoSelect(event, 'edit')">
+                        <label for="edit-${field.name}" class="photo-capture-btn">
+                            📷 写真を変更する
+                        </label>
+                        <div id="edit-photo-preview" class="photo-preview-area">
+                            ${existing ? `<img src="${existing}" class="photo-preview-img" />` : ''}
+                        </div>
+                    </div>
+                </div>
+            `;
         } else {
             return `
                 <div class="form-group">
@@ -387,7 +437,7 @@ function editData(category, id) {
     }).join('');
 
     modal.classList.add('active');
-    
+
     const form = document.getElementById('editForm');
     form.onsubmit = (e) => {
         e.preventDefault();
@@ -401,10 +451,17 @@ function updateData(category, id) {
     if (index === -1) return;
 
     dataStore[category][index].timestamp = document.getElementById('edit-timestamp').value;
-    
+
     dataFields[category].forEach(field => {
-        const input = document.getElementById(`edit-${field.name}`);
-        dataStore[category][index][field.name] = field.type === 'number' ? parseFloat(input.value) : input.value;
+        if (field.type === 'image') {
+            if (currentPhotoData.edit !== null) {
+                dataStore[category][index][field.name] = currentPhotoData.edit;
+            }
+            // 新しい写真が選択されていない場合は既存を保持
+        } else {
+            const input = document.getElementById(`edit-${field.name}`);
+            dataStore[category][index][field.name] = field.type === 'number' ? parseFloat(input.value) : input.value;
+        }
     });
 
     saveData();
@@ -484,6 +541,56 @@ function showAlert(type, message) {
     }, 3000);
 }
 
+// 写真を圧縮してbase64に変換
+function compressImage(dataUrl, maxWidth = 800, quality = 0.8) {
+    return new Promise((resolve) => {
+        const img = new Image();
+        img.onload = () => {
+            let width = img.width;
+            let height = img.height;
+            if (width > maxWidth) {
+                height = Math.round((height * maxWidth) / width);
+                width = maxWidth;
+            }
+            const canvas = document.createElement('canvas');
+            canvas.width = width;
+            canvas.height = height;
+            canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+            resolve(canvas.toDataURL('image/jpeg', quality));
+        };
+        img.src = dataUrl;
+    });
+}
+
+// 写真選択ハンドラ
+function handlePhotoSelect(event, target) {
+    const file = event.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+        const compressed = await compressImage(e.target.result);
+        currentPhotoData[target] = compressed;
+        const preview = document.getElementById(`${target}-photo-preview`);
+        if (preview) {
+            preview.innerHTML = `<img src="${compressed}" class="photo-preview-img" />`;
+        }
+    };
+    reader.readAsDataURL(file);
+}
+
+// 写真フルサイズ閲覧
+function viewPhotoById(id, fieldName, category) {
+    const item = dataStore[category].find(d => d.id == id);
+    if (item && item[fieldName]) {
+        document.getElementById('photoModalImage').src = item[fieldName];
+        document.getElementById('photoModal').classList.add('active');
+    }
+}
+
+function closePhotoModal() {
+    document.getElementById('photoModal').classList.remove('active');
+}
+
 // モーダルの外側クリックで閉じる
 document.getElementById('addModal').addEventListener('click', function(e) {
     if (e.target === this) closeModal();
@@ -491,6 +598,10 @@ document.getElementById('addModal').addEventListener('click', function(e) {
 
 document.getElementById('editModal').addEventListener('click', function(e) {
     if (e.target === this) closeEditModal();
+});
+
+document.getElementById('photoModal').addEventListener('click', function(e) {
+    if (e.target === this) closePhotoModal();
 });
 
 // 初期化

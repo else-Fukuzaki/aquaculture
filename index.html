@@ -107,6 +107,7 @@
                                 <th>平均体重(g)</th>
                                 <th>摂餌量(kg)</th>
                                 <th>生存率(%)</th>
+                                <th>写真</th>
                                 <th>操作</th>
                             </tr>
                         </thead>
@@ -204,6 +205,17 @@
                     <button type="button" class="btn btn-danger" onclick="closeEditModal()" style="flex: 1;">キャンセル</button>
                 </div>
             </form>
+        </div>
+    </div>
+
+    <!-- 写真ビューアーモーダル -->
+    <div id="photoModal" class="modal">
+        <div class="modal-content" style="text-align: center; max-width: 640px;">
+            <div class="modal-header">個体写真</div>
+            <img id="photoModalImage" src="" alt="個体写真" style="max-width: 100%; border-radius: 10px; display: block; margin: 0 auto;" />
+            <div style="margin-top: 20px;">
+                <button class="btn btn-danger" onclick="closePhotoModal()">閉じる</button>
+            </div>
         </div>
     </div>
 
