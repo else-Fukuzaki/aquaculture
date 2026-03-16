@@ -1,0 +1,28 @@
+{
+  "name": "aquaculture",
+  "version": "1.0.0",
+  "description": "// リポジトリの構成図",
+  "main": "app.js",
+  "scripts": {
+    "build": "cp index.html app.js styles.css www/",
+    "sync": "npm run build && npx cap sync",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/else-Fukuzaki/aquaculture.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/else-Fukuzaki/aquaculture/issues"
+  },
+  "homepage": "https://github.com/else-Fukuzaki/aquaculture#readme",
+  "dependencies": {
+    "@capacitor/cli": "^8.2.0",
+    "@capacitor/core": "^8.2.0",
+    "@capacitor/ios": "^8.2.0"
+  }
+}
