@@ -18,6 +18,10 @@ aquaculture/
 ├── index.html          # HTML構造（タブ・テーブル・モーダル）
 ├── styles.css          # CSSスタイル
 ├── app.js              # ロジック全体（データ管理・描画・エクスポート）
+├── package.json            # Capacitor依存関係
+├── capacitor.config.json   # Capacitorアプリ設定
+├── ios-setup-guide.md      # iOSビルド手順書
+├── .gitignore              # Git除外設定
 └── aqua_profile/
     └── aquaculture-app20260204.html  # 元ファイル（バックアップ）
 ```
@@ -34,10 +38,12 @@ aquaculture/
 ## 開発ロードマップ
 
 ### フェーズ1: Apple Store公開（現在進行中）
-- 既存のHTML/CSS/JSアプリを **Capacitor** でiOSアプリ化
+- ✅ Capacitor設定ファイル追加済み（package.json / capacitor.config.json）
+- ✅ iOSセットアップ手順書作成済み（ios-setup-guide.md）
+- ⬜ `npx cap add ios` 実行→Xcodeプロジェクト生成
+- ⬜ Apple Developer登録・審査手続き
+- ⬜ CDN経由のChart.js / sql.jsの動作確認
 - データ永続化は引き続き `localStorage` を使用
-- Apple Developer登録・審査手続きと並行して進める
-- CDN経由のChart.jsはCapacitor環境でも動作確認が必要
 
 ### フェーズ2: Supabaseバックエンド連携（App Store公開後）
 - `localStorage` を **Supabase（PostgreSQL）** に移行

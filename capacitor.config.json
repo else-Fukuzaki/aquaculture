@@ -1,0 +1,23 @@
+{
+  "appId": "jp.co.aquaculture.app",
+  "appName": "養殖漁業管理システム",
+  "webDir": ".",
+  "bundledWebRuntime": false,
+  "server": {
+    "allowNavigation": [
+      "cdn.jsdelivr.net"
+    ]
+  },
+  "ios": {
+    "contentInset": "automatic",
+    "scrollEnabled": false,
+    "limitsNavigationsToAppBoundDomains": false
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 2000,
+      "backgroundColor": "#1e3c72",
+      "showSpinner": false
+    }
+  }
+}
