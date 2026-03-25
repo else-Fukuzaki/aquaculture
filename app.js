@@ -1,3 +1,133 @@
+// =============================================
+// 認証（ローカル・メール＋パスワード）
+// =============================================
+
+const AUTH_USERS_KEY = 'aquacultureUsers';
+const AUTH_SESSION_KEY = 'aquacultureSession';
+
+// SHA-256ハッシュ（Web Crypto API）
+async function hashPassword(password) {
+    const encoder = new TextEncoder();
+    const data = encoder.encode(password);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+    return Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+// ユーザー一覧取得
+function getUsers() {
+    try {
+        return JSON.parse(localStorage.getItem(AUTH_USERS_KEY) || '[]');
+    } catch {
+        return [];
+    }
+}
+
+// 現在のセッション取得
+function getSession() {
+    try {
+        return JSON.parse(localStorage.getItem(AUTH_SESSION_KEY) || 'null');
+    } catch {
+        return null;
+    }
+}
+
+// 新規登録
+async function registerUser(email, password) {
+    const users = getUsers();
+    if (users.find(u => u.email === email)) {
+        throw new Error('このメールアドレスはすでに登録されています');
+    }
+    const passwordHash = await hashPassword(password);
+    users.push({ email, passwordHash });
+    localStorage.setItem(AUTH_USERS_KEY, JSON.stringify(users));
+}
+
+// ログイン
+async function loginUser(email, password) {
+    const users = getUsers();
+    const user = users.find(u => u.email === email);
+    if (!user) throw new Error('メールアドレスまたはパスワードが正しくありません');
+    const hash = await hashPassword(password);
+    if (hash !== user.passwordHash) throw new Error('メールアドレスまたはパスワードが正しくありません');
+    localStorage.setItem(AUTH_SESSION_KEY, JSON.stringify({ email, loginTime: Date.now() }));
+}
+
+// ログアウト
+function logout() {
+    localStorage.removeItem(AUTH_SESSION_KEY);
+    location.reload();
+}
+
+// ログイン後にメインアプリを表示
+function showMainApp(email) {
+    document.getElementById('authScreen').style.display = 'none';
+    document.getElementById('mainApp').style.display = 'block';
+    document.getElementById('headerUserEmail').textContent = email;
+    initDB();
+}
+
+// 認証画面の表示制御
+let authMode = 'login'; // 'login' | 'register'
+
+function setupAuthUI() {
+    const session = getSession();
+    if (session) {
+        showMainApp(session.email);
+        return;
+    }
+
+    document.getElementById('authScreen').style.display = 'flex';
+
+    const form = document.getElementById('authForm');
+    const toggleBtn = document.getElementById('authToggleBtn');
+
+    toggleBtn.addEventListener('click', () => {
+        authMode = authMode === 'login' ? 'register' : 'login';
+        const isRegister = authMode === 'register';
+        document.getElementById('authSubtitle').textContent = isRegister ? '新規登録' : 'ログイン';
+        document.getElementById('authSubmitBtn').textContent = isRegister ? '登録する' : 'ログイン';
+        document.getElementById('authToggleText').textContent = isRegister ? 'すでにアカウントをお持ちの方は' : 'アカウントをお持ちでない方は';
+        toggleBtn.textContent = isRegister ? 'ログイン' : '新規登録';
+        document.getElementById('authPasswordConfirmField').style.display = isRegister ? 'block' : 'none';
+        document.getElementById('authPasswordConfirm').required = isRegister;
+        document.getElementById('authError').style.display = 'none';
+    });
+
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const email = document.getElementById('authEmail').value.trim();
+        const password = document.getElementById('authPassword').value;
+        const errorEl = document.getElementById('authError');
+        errorEl.style.display = 'none';
+
+        if (password.length < 8) {
+            errorEl.textContent = 'パスワードは8文字以上で入力してください';
+            errorEl.style.display = 'block';
+            return;
+        }
+
+        try {
+            if (authMode === 'register') {
+                const confirm = document.getElementById('authPasswordConfirm').value;
+                if (password !== confirm) {
+                    errorEl.textContent = 'パスワードが一致しません';
+                    errorEl.style.display = 'block';
+                    return;
+                }
+                await registerUser(email, password);
+                await loginUser(email, password);
+            } else {
+                await loginUser(email, password);
+            }
+            showMainApp(email);
+        } catch (err) {
+            errorEl.textContent = err.message;
+            errorEl.style.display = 'block';
+        }
+    });
+}
+
+// =============================================
 // データストレージ（SQLiteのキャッシュ）
 let dataStore = {
     water: [],
@@ -723,5 +853,5 @@ document.getElementById('photoModal').addEventListener('click', function(e) {
     if (e.target === this) closePhotoModal();
 });
 
-// 初期化（sql.js WASMロードのため非同期）
-initDB();
+// 初期化（認証チェック → ログイン済みなら DB初期化）
+setupAuthUI();

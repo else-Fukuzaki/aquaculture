@@ -7,10 +7,49 @@
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+
+    <!-- ログイン画面 -->
+    <div id="authScreen" class="auth-screen">
+        <div class="auth-card">
+            <div class="auth-logo">🐟</div>
+            <h2 class="auth-title">養殖漁業管理システム</h2>
+            <p class="auth-subtitle" id="authSubtitle">ログイン</p>
+
+            <div id="authError" class="auth-error" style="display:none;"></div>
+
+            <form id="authForm">
+                <div class="auth-field">
+                    <label for="authEmail">メールアドレス</label>
+                    <input type="email" id="authEmail" placeholder="example@email.com" required autocomplete="email">
+                </div>
+                <div class="auth-field">
+                    <label for="authPassword">パスワード</label>
+                    <input type="password" id="authPassword" placeholder="8文字以上" required autocomplete="current-password">
+                </div>
+                <div class="auth-field" id="authPasswordConfirmField" style="display:none;">
+                    <label for="authPasswordConfirm">パスワード（確認）</label>
+                    <input type="password" id="authPasswordConfirm" placeholder="もう一度入力" autocomplete="new-password">
+                </div>
+                <button type="submit" class="btn btn-primary auth-submit" id="authSubmitBtn">ログイン</button>
+            </form>
+
+            <p class="auth-toggle">
+                <span id="authToggleText">アカウントをお持ちでない方は</span>
+                <button type="button" class="auth-toggle-btn" id="authToggleBtn">新規登録</button>
+            </p>
+        </div>
+    </div>
+
+    <!-- メインアプリ（ログイン後に表示） -->
+    <div id="mainApp" style="display:none;">
     <div class="container">
         <header>
             <h1>🐟 養殖漁業管理システム</h1>
             <p class="header-subtitle">データ統合管理プラットフォーム</p>
+            <div class="header-user">
+                <span id="headerUserEmail" class="header-user-email"></span>
+                <button class="btn btn-logout" onclick="logout()">ログアウト</button>
+            </div>
         </header>
 
         <div class="tabs">
@@ -233,6 +272,8 @@
             </div>
         </div>
     </div>
+
+    </div> <!-- /mainApp -->
 
     <script src="https://cdn.jsdelivr.net/npm/sql.js@1.10.2/dist/sql-wasm.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
