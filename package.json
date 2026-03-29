@@ -4,6 +4,7 @@
   "description": "// リポジトリの構成図",
   "main": "app.js",
   "scripts": {
+    "dev": "npx serve . -p 3000",
     "build": "cp index.html app.js styles.css www/",
     "sync": "npm run build && npx cap sync",
     "test": "echo \"Error: no test specified\" && exit 1"
