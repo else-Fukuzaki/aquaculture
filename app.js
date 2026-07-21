@@ -484,10 +484,10 @@ function renderChart(category) {
 
     const datasets = dataFields[category].slice(0, 3).map((field, index) => {
         const colors = [
-            'rgba(30, 60, 114, 0.8)',
-            'rgba(102, 126, 234, 0.8)',
-            'rgba(118, 75, 162, 0.8)',
-            'rgba(40, 167, 69, 0.8)'
+            'rgba(13, 139, 147, 0.8)',   // tide
+            'rgba(47, 208, 200, 0.8)',   // aqua
+            'rgba(10, 70, 80, 0.8)',     // deep
+            'rgba(244, 192, 91, 0.8)'    // sun
         ];
         return {
             label: field.label,
