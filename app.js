@@ -134,7 +134,8 @@ let dataStore = {
     environment: [],
     biology: [],
     operation: [],
-    economy: []
+    economy: [],
+    redtide: []
 };
 
 // SQLiteデータベースインスタンス
@@ -182,6 +183,20 @@ const dataFields = {
         { name: 'medicineCost', label: '薬剤費(円)', type: 'number', step: '1' },
         { name: 'maintenanceCost', label: '設備維持費(円)', type: 'number', step: '1' },
         { name: 'revenue', label: '売上(円)', type: 'number', step: '1' }
+    ],
+    // 赤潮データ（独立ビュー）。緯度・経度・半径は将来の地図ピッカーで入力予定だが、
+    // 現フェーズでは通常の数値入力として扱う。
+    redtide: [
+        { name: 'species', label: 'プランクトン種類', type: 'select', options: ['シャットネラ', 'カレニア', '夜光虫', 'ヘテロカプサ', 'その他'] },
+        { name: 'cellDensity', label: '細胞密度(cells/mL)', type: 'number', step: '1' },
+        { name: 'oxygen', label: '溶存酸素(mg/L)', type: 'number', step: '0.1' },
+        { name: 'waterTemp', label: '水温(℃)', type: 'number', step: '0.1' },
+        { name: 'seaColor', label: '海水の色', type: 'select', options: ['正常', '褐色', '赤褐色', '緑褐色'] },
+        { name: 'deadCount', label: '斃死数(尾)', type: 'number', step: '1' },
+        { name: 'response', label: '対応措置', type: 'select', options: ['なし', '給餌停止', '生簀移動', '曝気', 'その他'] },
+        { name: 'latitude', label: '緯度', type: 'number', step: '0.000001' },
+        { name: 'longitude', label: '経度', type: 'number', step: '0.000001' },
+        { name: 'radiusKm', label: '広がり半径(km)', type: 'number', step: '0.1' }
     ]
 };
 
@@ -192,7 +207,7 @@ let charts = {};
 let currentPhotoData = { add: null, edit: null };
 
 // ページネーション状態
-const currentPage = { water: 1, environment: 1, biology: 1, operation: 1, economy: 1 };
+const currentPage = { water: 1, environment: 1, biology: 1, operation: 1, economy: 1, redtide: 1 };
 const PAGE_SIZE = 20;
 
 // HTMLエスケープ
@@ -248,6 +263,12 @@ function createTables() {
         id REAL PRIMARY KEY, timestamp TEXT,
         feedCost REAL, utilityCost REAL, laborCost REAL,
         medicineCost REAL, maintenanceCost REAL, revenue REAL
+    )`);
+    db.run(`CREATE TABLE IF NOT EXISTS redtide (
+        id REAL PRIMARY KEY, timestamp TEXT,
+        species TEXT, cellDensity REAL, oxygen REAL, waterTemp REAL,
+        seaColor TEXT, deadCount REAL, response TEXT,
+        latitude REAL, longitude REAL, radiusKm REAL
     )`);
 }
 
@@ -307,8 +328,48 @@ async function initDB() {
         generateSampleData();
     }
 
+    seedRedtideSampleIfEmpty();
     reloadAllCategories();
     renderAllData();
+}
+
+// 赤潮テーブルが空のときだけサンプルを投入（実データ未入手のための開発用ダミー）。
+// 実データ運用開始後は行を削除するか、この関数の呼び出しを外す。
+function seedRedtideSampleIfEmpty() {
+    const res = db.exec('SELECT COUNT(*) FROM redtide');
+    const count = res.length ? res[0].values[0][0] : 0;
+    if (count > 0) return;
+
+    const now = new Date();
+    let idBase = Date.now() + 500000;
+    const speciesList = ['シャットネラ', 'カレニア', '夜光虫', 'ヘテロカプサ', 'その他'];
+    const responseList = ['なし', '給餌停止', '生簀移動', '曝気', 'その他'];
+    // 九州西岸〜瀬戸内を想定したダミー座標（褐色〜赤褐色の発生を模擬）
+    const spots = [
+        { lat: 32.75, lng: 129.87, color: '赤褐色' },
+        { lat: 33.24, lng: 132.56, color: '褐色' },
+        { lat: 31.58, lng: 131.41, color: '赤褐色' },
+        { lat: 34.34, lng: 133.19, color: '緑褐色' },
+        { lat: 32.05, lng: 130.02, color: '褐色' }
+    ];
+
+    for (let i = 0; i < spots.length; i++) {
+        const date = new Date(now.getTime() - i * 3 * 24 * 60 * 60 * 1000);
+        const spot = spots[i];
+        db.run('INSERT INTO redtide VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', [
+            ++idBase, date.toISOString(),
+            speciesList[i % speciesList.length],
+            5000 + Math.floor(Math.random() * 20000),
+            3 + Math.random() * 4,
+            22 + Math.random() * 6,
+            spot.color,
+            Math.floor(Math.random() * 500),
+            responseList[i % responseList.length],
+            spot.lat, spot.lng,
+            0.5 + Math.random() * 8
+        ]);
+    }
+    saveDB();
 }
 
 // サンプルデータ生成
@@ -370,6 +431,20 @@ document.querySelectorAll('.tab').forEach(tab => {
         document.getElementById(category).classList.add('active');
     });
 });
+
+// 赤潮ビューの表示切替（ヘッダーは共有し、タブ＋カテゴリ領域のみ入れ替える）
+function showRedtideView() {
+    document.querySelector('.tabs').style.display = 'none';
+    document.querySelector('.content').style.display = 'none';
+    document.getElementById('redtideView').style.display = 'block';
+    renderTable('redtide');
+}
+
+function hideRedtideView() {
+    document.getElementById('redtideView').style.display = 'none';
+    document.querySelector('.tabs').style.display = '';
+    document.querySelector('.content').style.display = '';
+}
 
 // 全データをレンダリング
 function renderAllData() {
@@ -468,6 +543,7 @@ function changePage(category, page) {
 // チャートをレンダリング
 function renderChart(category) {
     const canvas = document.getElementById(`${category}Chart`);
+    if (!canvas) return; // グラフ未設置のカテゴリ（例: 赤潮）はスキップ
     const data = dataStore[category];
 
     if (data.length === 0) return;
@@ -524,6 +600,7 @@ function renderChart(category) {
 // 統計情報をレンダリング
 function renderStats(category) {
     const statsDiv = document.getElementById(`${category}-stats`);
+    if (!statsDiv) return; // 統計カード未設置のカテゴリ（例: 赤潮）はスキップ
     const data = dataStore[category];
 
     if (data.length === 0) {

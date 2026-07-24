@@ -886,6 +886,54 @@ tbody tr:last-child td {
     }
 }
 
+/* =============================================
+   赤潮データ ビュー
+   ============================================= */
+
+/* ヘッダーの赤潮ボタン（赤潮＝赤系のフラットな差し色） */
+.btn-redtide {
+    background: var(--coral);
+    color: #fff;
+    border: none;
+    padding: 6px 14px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.2s;
+}
+
+.btn-redtide:hover {
+    background: #d85647;
+    transform: translateY(-1px);
+}
+
+.redtide-view-header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 22px;
+    padding-top: 4px;
+}
+
+.redtide-view-title {
+    margin: 0;
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--abyss);
+}
+
+.btn-back {
+    background: var(--shallow);
+    color: var(--deep);
+}
+
+.btn-back:hover {
+    background: var(--aqua);
+    color: #fff;
+    transform: translateY(-1px);
+}
+
 /* モーション配慮 */
 @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after {

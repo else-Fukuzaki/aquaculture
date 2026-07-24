@@ -49,6 +49,7 @@
             <p class="header-subtitle">水質・環境・生物・運営・経済を、ひとつの海図に</p>
             <div class="header-user">
                 <span id="headerUserEmail" class="header-user-email"></span>
+                <button class="btn btn-redtide" onclick="showRedtideView()">🌊 赤潮データ</button>
                 <button class="btn btn-logout" onclick="logout()">ログアウト</button>
             </div>
         </header>
@@ -232,6 +233,42 @@
                 </div>
                 <div id="economy-pagination" class="pagination"></div>
             </div>
+        </div>
+
+        <!-- 赤潮データ 独立ビュー（地図・グラフ・統計は今後のフェーズで追加） -->
+        <div id="redtideView" style="display:none;">
+            <div class="redtide-view-header">
+                <button class="btn btn-back" onclick="hideRedtideView()">← 戻る</button>
+                <h2 class="redtide-view-title">🌊 赤潮データ</h2>
+            </div>
+
+            <div class="action-buttons">
+                <button class="btn btn-primary" onclick="showAddModal('redtide')">📝 データ追加</button>
+                <button class="btn btn-success" onclick="exportData('redtide')">📊 CSVエクスポート</button>
+            </div>
+
+            <div class="data-table">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>日時</th>
+                            <th>プランクトン種類</th>
+                            <th>細胞密度(cells/mL)</th>
+                            <th>溶存酸素(mg/L)</th>
+                            <th>水温(℃)</th>
+                            <th>海水の色</th>
+                            <th>斃死数(尾)</th>
+                            <th>対応措置</th>
+                            <th>緯度</th>
+                            <th>経度</th>
+                            <th>広がり半径(km)</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="redtide-table-body"></tbody>
+                </table>
+            </div>
+            <div id="redtide-pagination" class="pagination"></div>
         </div>
     </div>
 
