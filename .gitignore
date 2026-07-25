@@ -33,3 +33,6 @@ GoogleService-Info.plist
 *.mobileprovision
 service-account*.json
 secrets.json
+
+# === E2E test harness (dev-only, not shipped) ===
+.e2e/
