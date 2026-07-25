@@ -942,3 +942,12 @@ tbody tr:last-child td {
         transition-duration: 0.001ms !important;
     }
 }
+
+/* ===== 赤潮：地図 ===== */
+.redtide-map {
+    width: 100%;
+    height: 380px;
+    border-radius: 12px;
+    margin-bottom: 20px;
+    z-index: 0;
+}

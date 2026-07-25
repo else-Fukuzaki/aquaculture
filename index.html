@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>養殖漁業管理システム</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -235,7 +237,7 @@
             </div>
         </div>
 
-        <!-- 赤潮データ 独立ビュー（地図・グラフ・統計は今後のフェーズで追加） -->
+        <!-- 赤潮データ 独立ビュー（地図・位置ピッカー・グラフ・統計・年月日フィルタ） -->
         <div id="redtideView" style="display:none;">
             <div class="redtide-view-header">
                 <button class="btn btn-back" onclick="hideRedtideView()">← 戻る</button>
@@ -245,6 +247,26 @@
             <div class="action-buttons">
                 <button class="btn btn-primary" onclick="showAddModal('redtide')">📝 データ追加</button>
                 <button class="btn btn-success" onclick="exportData('redtide')">📊 CSVエクスポート</button>
+            </div>
+
+            <div class="redtide-filter">
+                <label class="redtide-filter-label">期間で絞り込み</label>
+                <div class="redtide-filter-row">
+                    <input type="date" id="redtide-filter-start">
+                    <span>〜</span>
+                    <input type="date" id="redtide-filter-end">
+                    <button class="btn btn-small btn-primary" onclick="applyRedtideFilter()">絞り込み</button>
+                    <button class="btn btn-small" onclick="clearRedtideFilter()">全期間</button>
+                </div>
+            </div>
+
+            <div id="redtideMap" class="redtide-map"></div>
+
+            <div class="stats-grid" id="redtide-stats"></div>
+
+            <div class="chart-container">
+                <div class="chart-title">赤潮 指標推移（細胞密度・溶存酸素・水温）</div>
+                <canvas id="redtideChart"></canvas>
             </div>
 
             <div class="data-table">
@@ -313,6 +335,8 @@
 
     </div> <!-- /mainApp -->
 
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
     <script src="https://cdn.jsdelivr.net/npm/sql.js@1.10.2/dist/sql-wasm.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <script src="app.js"></script>
