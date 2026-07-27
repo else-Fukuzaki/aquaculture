@@ -690,7 +690,11 @@ function initRedtidePicker(prefix, lat, lng, radius) {
     redtideMaps.picker = map;
 
     if (hasPoint) setRedtidePickerPoint(prefix, Number(lat), Number(lng));
-    map.on('click', (e) => setRedtidePickerPoint(prefix, e.latlng.lat, e.latlng.lng));
+    // 地図を東西にパンすると e.latlng.lng は ±180 を超えるため wrap() して正規化する
+    map.on('click', (e) => {
+        const p = e.latlng.wrap();
+        setRedtidePickerPoint(prefix, p.lat, p.lng);
+    });
     setTimeout(() => map.invalidateSize(), 150);
 }
 
@@ -1088,7 +1092,7 @@ function editData(category, id) {
             return `
                 <div class="form-group">
                     <label>${field.label}</label>
-                    <input type="${field.type}" id="edit-${field.name}" step="${field.step || '1'}" value="${item[field.name] || ''}" required>
+                    <input type="${field.type}" id="edit-${field.name}" step="${field.step || '1'}" value="${escapeHtml(String(item[field.name] ?? ''))}" required>
                 </div>
             `;
         }
