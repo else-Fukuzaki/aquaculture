@@ -1160,7 +1160,7 @@ function exportData(category) {
     const rows = data.map(item => {
         return [
             new Date(item.timestamp).toLocaleString('ja-JP'),
-            ...dataFields[category].map(f => item[f.name] || '')
+            ...dataFields[category].map(f => item[f.name] ?? '')
         ];
     });
 

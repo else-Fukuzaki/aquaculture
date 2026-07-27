@@ -51,7 +51,7 @@ aquaculture/
 
 ### 全般
 - フレームワーク・ビルドツールは使用しない（バニラJS・直書きHTML/CSS）
-- 外部ライブラリはCDN経由のChart.jsのみ許可
+- 外部ライブラリはCDN経由の Chart.js と **Leaflet.js（赤潮データの地図）** のみ許可
 - 新たな外部依存を追加する場合は必ず確認を取る
 
 ### セキュリティ
@@ -60,7 +60,7 @@ aquaculture/
 - CSVエクスポート時は `escapeCSVCell()` でRFC 4180に準拠する
 
 ### JavaScript
-- グローバル変数は `dataStore`・`dataFields`・`charts`・`currentPage` に限定する
+- グローバル変数は `dataStore`・`dataFields`・`charts`・`currentPage` に限定する（赤潮の地図インスタンス保持のため `redtideMaps` のみ例外として追加）
 - 新しいデータカテゴリを追加する場合は `dataStore`・`dataFields`・HTML（タブ＋テーブル＋ページネーション）をセットで追加する
 - 関数は単一責任を意識し、肥大化させない
 
@@ -76,6 +76,10 @@ aquaculture/
 - 写真データはBase64テキストとしてSQLiteのTEXT型カラムに保存する
 - データIDは `Date.now() + Math.random()` を利用して生成する（REAL型）
 - Capacitor移行時は sql.js を `@capacitor-community/sqlite` に置き換える
+- 赤潮データ（`redtide`）は独立ビュー。緯度・経度・広がり半径はモーダルの Leaflet 地図ピッカー＋半径スライダーで入力し、`REDTIDE_PICKER_FIELDS` で汎用フォームから除外する
+- 赤潮の統計・グラフは汎用の `renderStats`/`renderChart` を使わず専用の `renderRedtideStats`/`renderRedtideChart` を使う（描画は `renderRedtideView()` に集約）
+- 赤潮グラフは2軸1枚にせず、細胞密度と溶存酸素・水温を別々の単軸グラフに分ける（軸スケールによる誤読を避けるため）
+- `timestamp` は ISO(UTC・シード) と `datetime-local`(ローカル) が混在するため、日付比較は文字列切り出しではなく `toLocalDateStr()` を通す
 
 ### Git
 - コミットメッセージは日本語で記述する
