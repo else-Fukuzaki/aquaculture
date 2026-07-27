@@ -227,6 +227,9 @@ const REDTIDE_CHART_COLORS = {
 const REDTIDE_DEFAULT_CENTER = [33.0, 131.5];
 const REDTIDE_DEFAULT_ZOOM = 6;
 
+// 赤潮の年月日フィルタ状態（YYYY-MM-DD の文字列、空なら無制限）
+const redtideFilter = { start: '', end: '' };
+
 // 現在選択中の写真データ (base64)
 let currentPhotoData = { add: null, edit: null };
 
@@ -619,8 +622,45 @@ function renderRedtideChart(data) {
         });
     }
 }
-// 暫定スタブ（Task 5 で実装：まずは全期間を返す）
-function getFilteredRedtide() { return dataStore.redtide; }
+// timestamp をローカル日付の YYYY-MM-DD にする。
+// DB には ISO(UTC・シード) と datetime-local(ローカル・ユーザー入力) が混在するため、
+// 文字列を切らずに Date を通してローカル日付へそろえる。
+function toLocalDateStr(timestamp) {
+    const d = new Date(timestamp);
+    if (isNaN(d.getTime())) return '';
+    const p = n => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}
+
+// dataStore.redtide を年月日フィルタで絞り込む（JS側フィルタ・SQL再クエリはしない）
+function getFilteredRedtide() {
+    const { start, end } = redtideFilter;
+    if (!start && !end) return dataStore.redtide;
+    return dataStore.redtide.filter(item => {
+        const t = toLocalDateStr(item.timestamp);
+        if (!t) return false;
+        if (start && t < start) return false;
+        if (end && t > end) return false;
+        return true;
+    });
+}
+
+// フィルタUIの適用/解除
+function applyRedtideFilter() {
+    redtideFilter.start = document.getElementById('redtide-filter-start').value;
+    redtideFilter.end = document.getElementById('redtide-filter-end').value;
+    currentPage.redtide = 1;
+    renderRedtideView();
+}
+
+function clearRedtideFilter() {
+    redtideFilter.start = '';
+    redtideFilter.end = '';
+    document.getElementById('redtide-filter-start').value = '';
+    document.getElementById('redtide-filter-end').value = '';
+    currentPage.redtide = 1;
+    renderRedtideView();
+}
 
 // 全データをレンダリング
 function renderAllData() {
@@ -633,6 +673,7 @@ function renderAllData() {
 
 // カテゴリのテーブル・チャート・統計をまとめて再描画
 function renderCategory(category) {
+    if (category === 'redtide') { renderRedtideView(); return; }
     renderTable(category);
     renderChart(category);
     renderStats(category);
@@ -710,9 +751,14 @@ function renderPagination(category, totalItems) {
 
 // ページを変更
 function changePage(category, page) {
-    const totalPages = Math.ceil(dataStore[category].length / PAGE_SIZE);
+    const source = category === 'redtide' ? getFilteredRedtide() : dataStore[category];
+    const totalPages = Math.ceil(source.length / PAGE_SIZE);
     if (page < 1 || page > totalPages) return;
     currentPage[category] = page;
+    if (category === 'redtide') {
+        renderTable('redtide', source);
+        return;
+    }
     renderTable(category);
 }
 

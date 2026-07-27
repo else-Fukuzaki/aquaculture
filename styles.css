@@ -951,3 +951,25 @@ tbody tr:last-child td {
     margin-bottom: 20px;
     z-index: 0;
 }
+
+/* ===== 赤潮：年月日フィルタ ===== */
+.redtide-filter {
+    margin-bottom: 16px;
+}
+.redtide-filter-label {
+    display: block;
+    font-size: 13px;
+    color: #0a4650;
+    margin-bottom: 6px;
+}
+.redtide-filter-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+.redtide-filter-row input[type="date"] {
+    padding: 6px 10px;
+    border: 1px solid #cfe0e0;
+    border-radius: 8px;
+}
