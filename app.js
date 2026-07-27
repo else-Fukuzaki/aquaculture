@@ -521,8 +521,34 @@ function renderRedtideMap(data) {
     }
 }
 
-// 暫定スタブ（Task 3 で実装）
-function renderRedtideStats(data) {}
+// 赤潮 専用統計（件数・最大細胞密度・平均溶存酸素・平均水温・合計斃死数）
+function renderRedtideStats(data) {
+    const el = document.getElementById('redtide-stats');
+    if (!el) return;
+    if (!data.length) { el.innerHTML = ''; return; }
+
+    const nums = key => data.map(d => Number(d[key])).filter(v => isFinite(v));
+    const sum = arr => arr.reduce((a, b) => a + b, 0);
+    const cell = nums('cellDensity');
+    const oxy = nums('oxygen');
+    const temp = nums('waterTemp');
+    const dead = nums('deadCount');
+
+    const cards = [
+        { label: '記録件数', value: `${data.length} 件` },
+        { label: '最大細胞密度(cells/mL)', value: cell.length ? Math.max(...cell).toLocaleString() : '-' },
+        { label: '平均溶存酸素(mg/L)', value: oxy.length ? (sum(oxy) / oxy.length).toFixed(1) : '-' },
+        { label: '平均水温(℃)', value: temp.length ? (sum(temp) / temp.length).toFixed(1) : '-' },
+        { label: '合計斃死数(尾)', value: dead.length ? sum(dead).toLocaleString() : '-' }
+    ];
+
+    el.innerHTML = cards.map(c => `
+        <div class="stat-card">
+            <div class="stat-label">${escapeHtml(c.label)}</div>
+            <div class="stat-value">${escapeHtml(String(c.value))}</div>
+        </div>
+    `).join('');
+}
 // 暫定スタブ（Task 4 で実装）
 function renderRedtideChart(data) {}
 // 暫定スタブ（Task 5 で実装：まずは全期間を返す）
