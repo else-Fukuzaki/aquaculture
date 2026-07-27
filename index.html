@@ -242,18 +242,30 @@
                     <button class="btn btn-success" onclick="exportData('redtide')">📊 CSVエクスポート</button>
                 </div>
 
-                <div class="redtide-filter">
-                    <label class="redtide-filter-label">期間で絞り込み</label>
+                <fieldset class="redtide-filter">
+                    <legend class="redtide-filter-label">期間で絞り込み</legend>
                     <div class="redtide-filter-row">
+                        <label for="redtide-filter-start">開始日</label>
                         <input type="date" id="redtide-filter-start">
-                        <span>〜</span>
+                        <span aria-hidden="true">〜</span>
+                        <label for="redtide-filter-end">終了日</label>
                         <input type="date" id="redtide-filter-end">
                         <button class="btn btn-small btn-primary" onclick="applyRedtideFilter()">絞り込み</button>
-                        <button class="btn btn-small" onclick="clearRedtideFilter()">全期間</button>
+                        <button class="btn btn-small" onclick="clearRedtideFilter()">全期間を表示</button>
                     </div>
-                </div>
+                </fieldset>
 
-                <div id="redtideMap" class="redtide-map"></div>
+                <p id="redtideMapDesc" class="redtide-map-desc">
+                    この地図の内容は下の一覧表でも確認できます。<span id="redtide-map-count" aria-live="polite"></span>
+                </p>
+                <div id="redtideMap" class="redtide-map" role="application"
+                    aria-label="赤潮の発生地点の地図" aria-describedby="redtideMapDesc"></div>
+                <ul class="redtide-legend">
+                    <li><span class="redtide-legend-swatch redtide-legend-swatch--normal" aria-hidden="true"></span>正常</li>
+                    <li><span class="redtide-legend-swatch redtide-legend-swatch--brown" aria-hidden="true"></span>褐色</li>
+                    <li><span class="redtide-legend-swatch redtide-legend-swatch--redbrown" aria-hidden="true"></span>赤褐色</li>
+                    <li><span class="redtide-legend-swatch redtide-legend-swatch--greenbrown" aria-hidden="true"></span>緑褐色</li>
+                </ul>
 
                 <div class="stats-grid" id="redtide-stats"></div>
 

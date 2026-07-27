@@ -505,12 +505,16 @@ function renderRedtideMap(data) {
         marker.bindPopup(
             `<strong>${escapeHtml(dateStr)}</strong><br>` +
             `種類: ${escapeHtml(String(item.species ?? '-'))}<br>` +
+            `海水の色: ${escapeHtml(String(item.seaColor ?? '-'))}<br>` +
             `細胞密度: ${escapeHtml(String(item.cellDensity ?? '-'))} cells/mL<br>` +
             `斃死数: ${escapeHtml(String(item.deadCount ?? '-'))} 尾<br>` +
             `半径: ${escapeHtml(String(item.radiusKm ?? '-'))} km`
         );
         points.push([lat, lng]);
     });
+
+    const countEl = document.getElementById('redtide-map-count');
+    if (countEl) countEl.textContent = `現在 ${points.length} 件を表示しています。`;
 
     if (points.length) {
         redtideMaps.list.fitBounds(points, { padding: [30, 30], maxZoom: 10 });
@@ -637,25 +641,51 @@ function getFilteredRedtide() {
 const REDTIDE_PICKER_FIELDS = ['latitude', 'longitude', 'radiusKm'];
 
 // モーダル内 位置ピッカーのHTML（prefix は 'add' / 'edit'）
+// 地図クリックは「速い手段」であって唯一の手段にはしない。緯度・経度は直接入力もでき、
+// どちらの経路でも地図と入力欄が同期する（キーボードのみでも指定できるようにするため）。
 function redtidePickerHtml(prefix, lat, lng, radius) {
-    const latVal = isFinite(Number(lat)) && lat !== null ? Number(lat) : '';
-    const lngVal = isFinite(Number(lng)) && lng !== null ? Number(lng) : '';
+    const hasPoint = lat !== null && lng !== null && isFinite(Number(lat)) && isFinite(Number(lng));
+    const latVal = hasPoint ? Number(lat) : '';
+    const lngVal = hasPoint ? Number(lng) : '';
     const rad = isFinite(Number(radius)) && radius !== null ? Number(radius) : 1;
     return `
-        <div class="form-group">
-            <label>発生地点（地図をクリックして指定）</label>
-            <div id="${prefix}-redtidePickerMap" class="redtide-picker-map"></div>
+        <fieldset class="form-group redtide-picker-fieldset">
+            <legend>発生地点</legend>
+            <p id="${prefix}-picker-help" class="redtide-picker-help">
+                地図をクリックするか、緯度・経度を直接入力してください。緯度は -90〜90、経度は -180〜180 です。
+            </p>
+            <div id="${prefix}-redtidePickerMap" class="redtide-picker-map" role="application"
+                aria-label="発生地点を選ぶ地図" aria-describedby="${prefix}-picker-help"></div>
             <div class="redtide-latlng-row">
-                <input type="number" id="${prefix}-latitude" step="0.000001" placeholder="緯度" value="${latVal}" readonly required>
-                <input type="number" id="${prefix}-longitude" step="0.000001" placeholder="経度" value="${lngVal}" readonly required>
+                <div class="redtide-latlng-field">
+                    <label for="${prefix}-latitude">緯度</label>
+                    <input type="number" id="${prefix}-latitude" step="0.000001" min="-90" max="90"
+                        value="${latVal}" required onchange="onRedtideLatLngInput('${prefix}')">
+                </div>
+                <div class="redtide-latlng-field">
+                    <label for="${prefix}-longitude">経度</label>
+                    <input type="number" id="${prefix}-longitude" step="0.000001" min="-180" max="180"
+                        value="${lngVal}" required onchange="onRedtideLatLngInput('${prefix}')">
+                </div>
             </div>
-        </div>
+            <p class="redtide-point-status" id="${prefix}-point-status" aria-live="polite">${
+                hasPoint ? redtidePointStatusText(Number(lat), Number(lng)) : '発生地点は未設定です'
+            }</p>
+        </fieldset>
         <div class="form-group">
-            <label>広がり半径(km): <span id="${prefix}-radius-display">${rad}</span></label>
+            <label for="${prefix}-radiusKm">広がり半径(km)</label>
+            <output for="${prefix}-radiusKm" id="${prefix}-radius-display" aria-hidden="true">${rad}</output>
             <input type="range" id="${prefix}-radiusKm" min="0.1" max="50" step="0.1" value="${rad}"
-                oninput="onRedtideRadiusInput('${prefix}')">
+                aria-valuetext="${rad} キロメートル" oninput="onRedtideRadiusInput('${prefix}')">
         </div>
     `;
+}
+
+// 設定済みの地点を読み上げ用の文にする
+function redtidePointStatusText(lat, lng) {
+    const ns = lat >= 0 ? '北緯' : '南緯';
+    const ew = lng >= 0 ? '東経' : '西経';
+    return `${ns} ${Math.abs(lat).toFixed(6)}、${ew} ${Math.abs(lng).toFixed(6)} に設定しました`;
 }
 
 // ピッカー地図を（再）初期化
@@ -687,11 +717,16 @@ function initRedtidePicker(prefix, lat, lng, radius) {
 }
 
 // クリック地点をマーカー＋緯度経度入力へ反映
-function setRedtidePickerPoint(prefix, lat, lng) {
+// updateInputs=false は「入力欄から来た更新」で、入力値を上書きしないためのフラグ
+function setRedtidePickerPoint(prefix, lat, lng, updateInputs = true) {
     const map = redtideMaps.picker;
     if (!map) return;
-    document.getElementById(`${prefix}-latitude`).value = lat.toFixed(6);
-    document.getElementById(`${prefix}-longitude`).value = lng.toFixed(6);
+    if (updateInputs) {
+        document.getElementById(`${prefix}-latitude`).value = lat.toFixed(6);
+        document.getElementById(`${prefix}-longitude`).value = lng.toFixed(6);
+    }
+    const status = document.getElementById(`${prefix}-point-status`);
+    if (status) status.textContent = redtidePointStatusText(lat, lng);
     if (redtideMaps.pickerMarker) {
         redtideMaps.pickerMarker.setLatLng([lat, lng]);
     } else {
@@ -702,10 +737,23 @@ function setRedtidePickerPoint(prefix, lat, lng) {
     updateRedtidePickerCircle(prefix);
 }
 
+// 緯度経度の直接入力：地図側を追従させる（入力欄は上書きしない）
+function onRedtideLatLngInput(prefix) {
+    const lat = parseFloat(document.getElementById(`${prefix}-latitude`).value);
+    const lng = parseFloat(document.getElementById(`${prefix}-longitude`).value);
+    if (!isFinite(lat) || !isFinite(lng)) return;
+    if (lat < -90 || lat > 90 || lng < -180 || lng > 180) return;
+    setRedtidePickerPoint(prefix, lat, lng, false);
+    if (redtideMaps.picker) {
+        redtideMaps.picker.setView([lat, lng], Math.max(redtideMaps.picker.getZoom(), 9));
+    }
+}
+
 // スライダー入力：半径表示とプレビュー円を更新
 function onRedtideRadiusInput(prefix) {
-    document.getElementById(`${prefix}-radius-display`).textContent =
-        document.getElementById(`${prefix}-radiusKm`).value;
+    const slider = document.getElementById(`${prefix}-radiusKm`);
+    document.getElementById(`${prefix}-radius-display`).textContent = slider.value;
+    slider.setAttribute('aria-valuetext', `${slider.value} キロメートル`);
     updateRedtidePickerCircle(prefix);
 }
 
@@ -956,7 +1004,7 @@ function showAddModal(category) {
 
     formFields.innerHTML = `
         <div class="form-group">
-            <label>日時</label>
+            <label for="add-timestamp">日時</label>
             <input type="datetime-local" id="add-timestamp" required value="${new Date().toISOString().slice(0, 16)}">
         </div>
     ` + dataFields[category]
@@ -965,7 +1013,7 @@ function showAddModal(category) {
         if (field.type === 'select') {
             return `
                 <div class="form-group">
-                    <label>${field.label}</label>
+                    <label for="add-${field.name}">${field.label}</label>
                     <select id="add-${field.name}" required>
                         ${field.options.map(opt => `<option value="${opt}">${opt}</option>`).join('')}
                     </select>
@@ -974,7 +1022,7 @@ function showAddModal(category) {
         } else if (field.type === 'image') {
             return `
                 <div class="form-group">
-                    <label>${field.label}</label>
+                    <label for="add-${field.name}">${field.label}</label>
                     <div class="photo-capture-area">
                         <input type="file" id="add-${field.name}" accept="image/*" capture="environment"
                             class="photo-file-input" onchange="handlePhotoSelect(event, 'add')">
@@ -988,7 +1036,7 @@ function showAddModal(category) {
         } else {
             return `
                 <div class="form-group">
-                    <label>${field.label}</label>
+                    <label for="add-${field.name}">${field.label}</label>
                     <input type="${field.type}" id="add-${field.name}" step="${field.step || '1'}" required>
                 </div>
             `;
@@ -1044,7 +1092,7 @@ function editData(category, id) {
 
     formFields.innerHTML = `
         <div class="form-group">
-            <label>日時</label>
+            <label for="edit-timestamp">日時</label>
             <input type="datetime-local" id="edit-timestamp" required value="${timestamp}">
         </div>
     ` + dataFields[category]
@@ -1053,7 +1101,7 @@ function editData(category, id) {
         if (field.type === 'select') {
             return `
                 <div class="form-group">
-                    <label>${field.label}</label>
+                    <label for="edit-${field.name}">${field.label}</label>
                     <select id="edit-${field.name}" required>
                         ${field.options.map(opt => `<option value="${opt}" ${item[field.name] === opt ? 'selected' : ''}>${opt}</option>`).join('')}
                     </select>
@@ -1063,7 +1111,7 @@ function editData(category, id) {
             const existing = item[field.name];
             return `
                 <div class="form-group">
-                    <label>${field.label}</label>
+                    <label for="edit-${field.name}">${field.label}</label>
                     <div class="photo-capture-area">
                         <input type="file" id="edit-${field.name}" accept="image/*" capture="environment"
                             class="photo-file-input" onchange="handlePhotoSelect(event, 'edit')">
@@ -1079,7 +1127,7 @@ function editData(category, id) {
         } else {
             return `
                 <div class="form-group">
-                    <label>${field.label}</label>
+                    <label for="edit-${field.name}">${field.label}</label>
                     <input type="${field.type}" id="edit-${field.name}" step="${field.step || '1'}" value="${escapeHtml(String(item[field.name] ?? ''))}" required>
                 </div>
             `;
@@ -1179,6 +1227,8 @@ function closeEditModal() {
 function showAlert(type, message) {
     const alertDiv = document.createElement('div');
     alertDiv.className = `alert alert-${type}`;
+    const isProblem = type === 'warning' || type === 'error' || type === 'danger';
+    alertDiv.setAttribute('role', isProblem ? 'alert' : 'status');
     alertDiv.textContent = message;
     alertDiv.style.position = 'fixed';
     alertDiv.style.top = '20px';

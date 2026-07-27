@@ -947,3 +947,67 @@ tbody tr:last-child td {
     flex: 1;
     min-width: 0;
 }
+
+/* ===== 赤潮：地図の凡例・説明 ===== */
+.redtide-map-desc {
+    font-size: 13px;
+    color: #0a4650;
+    margin-bottom: 6px;
+}
+.redtide-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px;
+    list-style: none;
+    padding: 0;
+    margin: -12px 0 20px;
+    font-size: 13px;
+    color: #0a4650;
+}
+.redtide-legend li {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.redtide-legend-swatch {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    display: inline-block;
+}
+.redtide-legend-swatch--normal { background: #2f8f6f; }
+.redtide-legend-swatch--brown { background: #b5742a; }
+.redtide-legend-swatch--redbrown { background: #c0392b; }
+.redtide-legend-swatch--greenbrown { background: #6f8f2a; }
+
+/* ===== 赤潮：位置ピッカーの入力欄 ===== */
+.redtide-picker-fieldset {
+    border: 1px solid #cfe0e0;
+    border-radius: 10px;
+    padding: 12px;
+}
+.redtide-picker-help {
+    font-size: 13px;
+    color: #0a4650;
+    margin-bottom: 8px;
+}
+.redtide-latlng-field {
+    flex: 1;
+    min-width: 0;
+}
+.redtide-latlng-field label {
+    display: block;
+    font-size: 13px;
+    margin-bottom: 4px;
+}
+.redtide-point-status {
+    font-size: 13px;
+    color: #0a4650;
+    margin-top: 8px;
+}
+
+/* ===== フォーカス可視性（キーボード操作時のみ枠を出す） ===== */
+:focus-visible {
+    outline: 3px solid var(--tide);
+    outline-offset: 2px;
+}
