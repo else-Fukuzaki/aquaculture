@@ -51,7 +51,6 @@
             <p class="header-subtitle">水質・環境・生物・運営・経済を、ひとつの海図に</p>
             <div class="header-user">
                 <span id="headerUserEmail" class="header-user-email"></span>
-                <button class="btn btn-redtide" onclick="showRedtideView()">🌊 赤潮データ</button>
                 <button class="btn btn-logout" onclick="logout()">ログアウト</button>
             </div>
         </header>
@@ -62,6 +61,7 @@
             <button class="tab" data-category="biology">生物データ</button>
             <button class="tab" data-category="operation">運営データ</button>
             <button class="tab" data-category="economy">経済データ</button>
+            <button class="tab" data-category="redtide">🌊 赤潮データ</button>
         </div>
 
         <div class="content">
@@ -235,68 +235,63 @@
                 </div>
                 <div id="economy-pagination" class="pagination"></div>
             </div>
-        </div>
-
-        <!-- 赤潮データ 独立ビュー（地図・位置ピッカー・グラフ・統計・年月日フィルタ） -->
-        <div id="redtideView" style="display:none;">
-            <div class="redtide-view-header">
-                <button class="btn btn-back" onclick="hideRedtideView()">← 戻る</button>
-                <h2 class="redtide-view-title">🌊 赤潮データ</h2>
-            </div>
-
-            <div class="action-buttons">
-                <button class="btn btn-primary" onclick="showAddModal('redtide')">📝 データ追加</button>
-                <button class="btn btn-success" onclick="exportData('redtide')">📊 CSVエクスポート</button>
-            </div>
-
-            <div class="redtide-filter">
-                <label class="redtide-filter-label">期間で絞り込み</label>
-                <div class="redtide-filter-row">
-                    <input type="date" id="redtide-filter-start">
-                    <span>〜</span>
-                    <input type="date" id="redtide-filter-end">
-                    <button class="btn btn-small btn-primary" onclick="applyRedtideFilter()">絞り込み</button>
-                    <button class="btn btn-small" onclick="clearRedtideFilter()">全期間</button>
+            <!-- 赤潮データセクション（地図・位置ピッカー・グラフ・統計・年月日フィルタ） -->
+            <div id="redtide" class="category-section">
+                <div class="action-buttons">
+                    <button class="btn btn-primary" onclick="showAddModal('redtide')">📝 データ追加</button>
+                    <button class="btn btn-success" onclick="exportData('redtide')">📊 CSVエクスポート</button>
                 </div>
+
+                <div class="redtide-filter">
+                    <label class="redtide-filter-label">期間で絞り込み</label>
+                    <div class="redtide-filter-row">
+                        <input type="date" id="redtide-filter-start">
+                        <span>〜</span>
+                        <input type="date" id="redtide-filter-end">
+                        <button class="btn btn-small btn-primary" onclick="applyRedtideFilter()">絞り込み</button>
+                        <button class="btn btn-small" onclick="clearRedtideFilter()">全期間</button>
+                    </div>
+                </div>
+
+                <div id="redtideMap" class="redtide-map"></div>
+
+                <div class="stats-grid" id="redtide-stats"></div>
+
+                <div class="chart-container">
+                    <div class="chart-title">赤潮 細胞密度の推移（cells/mL）</div>
+                    <canvas id="redtideChart"></canvas>
+                </div>
+
+                <div class="chart-container">
+                    <div class="chart-title">溶存酸素・水温の推移</div>
+                    <canvas id="redtideEnvChart"></canvas>
+                </div>
+
+                <div class="data-table">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>日時</th>
+                                <th>プランクトン種類</th>
+                                <th>細胞密度(cells/mL)</th>
+                                <th>溶存酸素(mg/L)</th>
+                                <th>水温(℃)</th>
+                                <th>海水の色</th>
+                                <th>斃死数(尾)</th>
+                                <th>対応措置</th>
+                                <th>緯度</th>
+                                <th>経度</th>
+                                <th>広がり半径(km)</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="redtide-table-body"></tbody>
+                    </table>
+                </div>
+                <div id="redtide-pagination" class="pagination"></div>
             </div>
-
-            <div id="redtideMap" class="redtide-map"></div>
-
-            <div class="stats-grid" id="redtide-stats"></div>
-
-            <div class="chart-container">
-                <div class="chart-title">赤潮 細胞密度の推移（cells/mL）</div>
-                <canvas id="redtideChart"></canvas>
-            </div>
-
-            <div class="chart-container">
-                <div class="chart-title">溶存酸素・水温の推移</div>
-                <canvas id="redtideEnvChart"></canvas>
-            </div>
-
-            <div class="data-table">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>日時</th>
-                            <th>プランクトン種類</th>
-                            <th>細胞密度(cells/mL)</th>
-                            <th>溶存酸素(mg/L)</th>
-                            <th>水温(℃)</th>
-                            <th>海水の色</th>
-                            <th>斃死数(尾)</th>
-                            <th>対応措置</th>
-                            <th>緯度</th>
-                            <th>経度</th>
-                            <th>広がり半径(km)</th>
-                            <th>操作</th>
-                        </tr>
-                    </thead>
-                    <tbody id="redtide-table-body"></tbody>
-                </table>
-            </div>
-            <div id="redtide-pagination" class="pagination"></div>
         </div>
+
     </div>
 
     <!-- データ追加モーダル -->

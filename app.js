@@ -456,22 +456,10 @@ document.querySelectorAll('.tab').forEach(tab => {
         document.querySelectorAll('.category-section').forEach(s => s.classList.remove('active'));
         this.classList.add('active');
         document.getElementById(category).classList.add('active');
+        // 赤潮タブは非表示中に地図サイズが確定しないため、表示された時点で描画し直す
+        if (category === 'redtide') renderRedtideView();
     });
 });
-
-// 赤潮ビューの表示切替（ヘッダーは共有し、タブ＋カテゴリ領域のみ入れ替える）
-function showRedtideView() {
-    document.querySelector('.tabs').style.display = 'none';
-    document.querySelector('.content').style.display = 'none';
-    document.getElementById('redtideView').style.display = 'block';
-    renderRedtideView();
-}
-
-function hideRedtideView() {
-    document.getElementById('redtideView').style.display = 'none';
-    document.querySelector('.tabs').style.display = '';
-    document.querySelector('.content').style.display = '';
-}
 
 // ===== 赤潮：地図・統計・グラフ・フィルタ =====
 
