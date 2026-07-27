@@ -216,6 +216,13 @@ const REDTIDE_COLORS = {
     default: '#c0392b'
 };
 
+// 赤潮グラフの系列色。色覚多様性・コントラストの検証済み（dataviz の6チェック全PASS）
+const REDTIDE_CHART_COLORS = {
+    cellDensity: '#c0392b',
+    oxygen: '#0097a7',
+    waterTemp: '#b5742a'
+};
+
 // 一覧地図・ピッカーの初期表示（九州西岸〜瀬戸内が収まる位置）
 const REDTIDE_DEFAULT_CENTER = [33.0, 131.5];
 const REDTIDE_DEFAULT_ZOOM = 6;
@@ -549,8 +556,69 @@ function renderRedtideStats(data) {
         </div>
     `).join('');
 }
-// 暫定スタブ（Task 4 で実装）
-function renderRedtideChart(data) {}
+// 赤潮 専用グラフ。細胞密度と溶存酸素/水温はスケールが2桁以上違うため、
+// 2軸1枚ではなく x軸（日付）を共有する2枚の単軸グラフに分ける（誤読防止）。
+function renderRedtideChart(data) {
+    const cellCanvas = document.getElementById('redtideChart');
+    const envCanvas = document.getElementById('redtideEnvChart');
+    if (charts.redtide) { charts.redtide.destroy(); charts.redtide = null; }
+    if (charts.redtideEnv) { charts.redtideEnv.destroy(); charts.redtideEnv = null; }
+    if (!data.length) return;
+
+    const sorted = data.slice().sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+    const labels = sorted.map(item => {
+        const d = new Date(item.timestamp);
+        return `${d.getMonth() + 1}/${d.getDate()}`;
+    });
+    const line = (label, key, color) => ({
+        label,
+        data: sorted.map(i => i[key]),
+        borderColor: color,
+        backgroundColor: color,
+        borderWidth: 2,
+        pointRadius: 4,
+        tension: 0.3,
+        fill: false
+    });
+    const baseOptions = (showLegend, yTitle) => ({
+        responsive: true,
+        maintainAspectRatio: true,
+        aspectRatio: 2,
+        plugins: {
+            legend: showLegend
+                ? { position: 'bottom', labels: { padding: 15, font: { size: 11 } } }
+                : { display: false },
+            tooltip: { mode: 'index', intersect: false }
+        },
+        scales: {
+            y: { beginAtZero: true, title: { display: true, text: yTitle }, grid: { color: 'rgba(0,0,0,0.05)' } },
+            x: { grid: { display: false } }
+        }
+    });
+
+    // 単系列なので凡例は出さない（タイトルが系列名を示す）
+    if (cellCanvas) {
+        charts.redtide = new Chart(cellCanvas, {
+            type: 'line',
+            data: { labels, datasets: [line('細胞密度(cells/mL)', 'cellDensity', REDTIDE_CHART_COLORS.cellDensity)] },
+            options: baseOptions(false, 'cells/mL')
+        });
+    }
+
+    if (envCanvas) {
+        charts.redtideEnv = new Chart(envCanvas, {
+            type: 'line',
+            data: {
+                labels,
+                datasets: [
+                    line('溶存酸素(mg/L)', 'oxygen', REDTIDE_CHART_COLORS.oxygen),
+                    line('水温(℃)', 'waterTemp', REDTIDE_CHART_COLORS.waterTemp)
+                ]
+            },
+            options: baseOptions(true, 'mg/L ／ ℃')
+        });
+    }
+}
 // 暫定スタブ（Task 5 で実装：まずは全期間を返す）
 function getFilteredRedtide() { return dataStore.redtide; }
 
