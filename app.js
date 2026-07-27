@@ -205,7 +205,7 @@ let charts = {};
 
 // 赤潮の地図インスタンス（一覧地図＋位置ピッカー）。
 // CLAUDE.md のグローバル制限の例外として設計仕様書 §6 で承認済み。
-const redtideMaps = { list: null, listLayers: null, picker: null, pickerMarker: null, pickerCircle: null };
+const redtideMaps = { list: null, listLayers: null, shouldFitBounds: true, picker: null, pickerMarker: null, pickerCircle: null };
 
 // 海水の色 → 円/マーカーの色（赤潮＝赤系）
 const REDTIDE_COLORS = {
@@ -484,6 +484,7 @@ function renderRedtideMap(data) {
             attribution: '&copy; OpenStreetMap contributors'
         }).addTo(redtideMaps.list);
         redtideMaps.listLayers = L.layerGroup().addTo(redtideMaps.list);
+        redtideMaps.shouldFitBounds = true;
     }
     redtideMaps.list.invalidateSize();
     redtideMaps.listLayers.clearLayers();
@@ -516,11 +517,18 @@ function renderRedtideMap(data) {
     const countEl = document.getElementById('redtide-map-count');
     if (countEl) countEl.textContent = `現在 ${points.length} 件を表示しています。`;
 
+    // 表示範囲を合わせるのは初回と絞り込み変更時だけ。
+    // 毎回合わせるとタブを離れて戻るだけで拡大位置が失われる。
+    // タブ非表示中はコンテナのサイズが0で正しく合わせられないため、表示されるまで持ち越す。
+    const hasSize = mapEl.clientWidth > 0 && mapEl.clientHeight > 0;
     if (points.length) {
-        redtideMaps.list.fitBounds(points, { padding: [30, 30], maxZoom: 10 });
-    } else {
+        if (redtideMaps.shouldFitBounds && hasSize) {
+            redtideMaps.list.fitBounds(points, { padding: [30, 30], maxZoom: 10 });
+        }
+    } else if (hasSize) {
         redtideMaps.list.setView(REDTIDE_DEFAULT_CENTER, REDTIDE_DEFAULT_ZOOM);
     }
+    if (hasSize) redtideMaps.shouldFitBounds = false;
 }
 
 // 赤潮 専用統計（件数・最大細胞密度・平均溶存酸素・平均水温・合計斃死数）
@@ -614,6 +622,15 @@ function renderRedtideChart(data) {
         });
     }
 }
+// datetime-local 入力用の文字列（YYYY-MM-DDTHH:mm）をローカル時刻で組み立てる。
+// toISOString() はUTCを返すため、これを使うと保存のたびに時差分ずつ時刻がずれていく。
+function toDateTimeInputValue(date) {
+    const d = date instanceof Date ? date : new Date(date);
+    if (isNaN(d.getTime())) return '';
+    const p = n => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+
 // timestamp をローカル日付の YYYY-MM-DD にする。
 // DB には ISO(UTC・シード) と datetime-local(ローカル・ユーザー入力) が混在するため、
 // 文字列を切らずに Date を通してローカル日付へそろえる。
@@ -660,12 +677,16 @@ function redtidePickerHtml(prefix, lat, lng, radius) {
                 <div class="redtide-latlng-field">
                     <label for="${prefix}-latitude">緯度</label>
                     <input type="number" id="${prefix}-latitude" step="0.000001" min="-90" max="90"
-                        value="${latVal}" required onchange="onRedtideLatLngInput('${prefix}')">
+                        value="${latVal}" required onchange="onRedtideLatLngInput('${prefix}')"
+                        oninvalid="this.setCustomValidity('緯度を -90〜90 の範囲で入力してください')"
+                        oninput="this.setCustomValidity('')">
                 </div>
                 <div class="redtide-latlng-field">
                     <label for="${prefix}-longitude">経度</label>
                     <input type="number" id="${prefix}-longitude" step="0.000001" min="-180" max="180"
-                        value="${lngVal}" required onchange="onRedtideLatLngInput('${prefix}')">
+                        value="${lngVal}" required onchange="onRedtideLatLngInput('${prefix}')"
+                        oninvalid="this.setCustomValidity('経度を -180〜180 の範囲で入力してください')"
+                        oninput="this.setCustomValidity('')">
                 </div>
             </div>
             <p class="redtide-point-status" id="${prefix}-point-status" aria-live="polite">${
@@ -693,10 +714,7 @@ function initRedtidePicker(prefix, lat, lng, radius) {
     const el = document.getElementById(`${prefix}-redtidePickerMap`);
     if (!el || typeof L === 'undefined') return;
 
-    if (redtideMaps.picker) { redtideMaps.picker.remove(); }
-    redtideMaps.picker = null;
-    redtideMaps.pickerMarker = null;
-    redtideMaps.pickerCircle = null;
+    destroyRedtidePicker();
 
     const hasPoint = lat !== null && lng !== null && isFinite(Number(lat)) && isFinite(Number(lng));
     const center = hasPoint ? [Number(lat), Number(lng)] : REDTIDE_DEFAULT_CENTER;
@@ -713,7 +731,11 @@ function initRedtidePicker(prefix, lat, lng, radius) {
         const p = e.latlng.wrap();
         setRedtidePickerPoint(prefix, p.lat, p.lng);
     });
-    setTimeout(() => map.invalidateSize(), 150);
+    // モーダルの表示が確定してからサイズを取り直す。
+    // 待っている間に閉じられている場合があるので、まだ現役の地図かを確かめてから呼ぶ。
+    setTimeout(() => {
+        if (redtideMaps.picker === map) map.invalidateSize();
+    }, 150);
 }
 
 // クリック地点をマーカー＋緯度経度入力へ反映
@@ -741,8 +763,15 @@ function setRedtidePickerPoint(prefix, lat, lng, updateInputs = true) {
 function onRedtideLatLngInput(prefix) {
     const lat = parseFloat(document.getElementById(`${prefix}-latitude`).value);
     const lng = parseFloat(document.getElementById(`${prefix}-longitude`).value);
-    if (!isFinite(lat) || !isFinite(lng)) return;
-    if (lat < -90 || lat > 90 || lng < -180 || lng > 180) return;
+    const status = document.getElementById(`${prefix}-point-status`);
+    if (!isFinite(lat) || !isFinite(lng)) {
+        if (status) status.textContent = '発生地点は未設定です';
+        return;
+    }
+    if (lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+        if (status) status.textContent = '緯度は -90〜90、経度は -180〜180 の範囲で入力してください';
+        return;
+    }
     setRedtidePickerPoint(prefix, lat, lng, false);
     if (redtideMaps.picker) {
         redtideMaps.picker.setView([lat, lng], Math.max(redtideMaps.picker.getZoom(), 9));
@@ -789,6 +818,7 @@ function validateRedtideInputs(prefix) {
 
 // フィルタUIの適用/解除
 function applyRedtideFilter() {
+    redtideMaps.shouldFitBounds = true;
     redtideFilter.start = document.getElementById('redtide-filter-start').value;
     redtideFilter.end = document.getElementById('redtide-filter-end').value;
     currentPage.redtide = 1;
@@ -796,6 +826,7 @@ function applyRedtideFilter() {
 }
 
 function clearRedtideFilter() {
+    redtideMaps.shouldFitBounds = true;
     redtideFilter.start = '';
     redtideFilter.end = '';
     document.getElementById('redtide-filter-start').value = '';
@@ -806,11 +837,7 @@ function clearRedtideFilter() {
 
 // 全データをレンダリング
 function renderAllData() {
-    Object.keys(dataStore).forEach(category => {
-        renderTable(category);
-        renderChart(category);
-        renderStats(category);
-    });
+    Object.keys(dataStore).forEach(category => renderCategory(category));
 }
 
 // カテゴリのテーブル・チャート・統計をまとめて再描画
@@ -1005,7 +1032,7 @@ function showAddModal(category) {
     formFields.innerHTML = `
         <div class="form-group">
             <label for="add-timestamp">日時</label>
-            <input type="datetime-local" id="add-timestamp" required value="${new Date().toISOString().slice(0, 16)}">
+            <input type="datetime-local" id="add-timestamp" required value="${toDateTimeInputValue(new Date())}">
         </div>
     ` + dataFields[category]
         .filter(field => !(category === 'redtide' && REDTIDE_PICKER_FIELDS.includes(field.name)))
@@ -1088,7 +1115,7 @@ function editData(category, id) {
     if (!item) return;
 
     const formFields = document.getElementById('editFormFields');
-    const timestamp = new Date(item.timestamp).toISOString().slice(0, 16);
+    const timestamp = toDateTimeInputValue(item.timestamp);
 
     formFields.innerHTML = `
         <div class="form-group">
@@ -1190,7 +1217,8 @@ function deleteData(category, id) {
 
 // CSVエクスポート
 function exportData(category) {
-    const data = dataStore[category];
+    // 赤潮は画面の絞り込み結果をそのまま出す（画面とCSVが食い違わないように）
+    const data = category === 'redtide' ? getFilteredRedtide() : dataStore[category];
     if (data.length === 0) {
         showAlert('warning', 'エクスポートするデータがありません');
         return;
@@ -1217,10 +1245,28 @@ function exportData(category) {
 // モーダルを閉じる
 function closeModal() {
     document.getElementById('addModal').classList.remove('active');
+    destroyRedtidePicker();
 }
 
 function closeEditModal() {
     document.getElementById('editModal').classList.remove('active');
+    destroyRedtidePicker();
+}
+
+// モーダルを閉じたらピッカー地図を破棄する（閉じたあともWebViewに残り続けないように）
+function destroyRedtidePicker() {
+    if (redtideMaps.picker) {
+        // モーダルの再描画でコンテナが先に差し替わっていると Leaflet 内部が位置情報を辿れず落ちる。
+        // 破棄はあくまで後片付けなので、失敗しても参照を捨てて先へ進める。
+        try {
+            redtideMaps.picker.remove();
+        } catch (e) {
+            // コンテナが既にDOMから外れている場合。残るのは参照だけなので下でnull化する
+        }
+    }
+    redtideMaps.picker = null;
+    redtideMaps.pickerMarker = null;
+    redtideMaps.pickerCircle = null;
 }
 
 // アラート表示

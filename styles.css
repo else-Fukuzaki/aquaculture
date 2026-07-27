@@ -890,7 +890,6 @@ tbody tr:last-child td {
    赤潮データ ビュー
    ============================================= */
 
-/* ヘッダーの赤潮ボタン（赤潮＝赤系のフラットな差し色） */
 /* モーション配慮 */
 @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after {
