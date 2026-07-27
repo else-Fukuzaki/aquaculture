@@ -203,6 +203,23 @@ const dataFields = {
 // チャートインスタンス
 let charts = {};
 
+// 赤潮の地図インスタンス（一覧地図＋位置ピッカー）。
+// CLAUDE.md のグローバル制限の例外として設計仕様書 §6 で承認済み。
+const redtideMaps = { list: null, listLayers: null, picker: null, pickerMarker: null, pickerCircle: null };
+
+// 海水の色 → 円/マーカーの色（赤潮＝赤系）
+const REDTIDE_COLORS = {
+    '正常': '#2f8f6f',
+    '褐色': '#b5742a',
+    '赤褐色': '#c0392b',
+    '緑褐色': '#6f8f2a',
+    default: '#c0392b'
+};
+
+// 一覧地図・ピッカーの初期表示（九州西岸〜瀬戸内が収まる位置）
+const REDTIDE_DEFAULT_CENTER = [33.0, 131.5];
+const REDTIDE_DEFAULT_ZOOM = 6;
+
 // 現在選択中の写真データ (base64)
 let currentPhotoData = { add: null, edit: null };
 
@@ -437,7 +454,7 @@ function showRedtideView() {
     document.querySelector('.tabs').style.display = 'none';
     document.querySelector('.content').style.display = 'none';
     document.getElementById('redtideView').style.display = 'block';
-    renderTable('redtide');
+    renderRedtideView();
 }
 
 function hideRedtideView() {
@@ -445,6 +462,71 @@ function hideRedtideView() {
     document.querySelector('.tabs').style.display = '';
     document.querySelector('.content').style.display = '';
 }
+
+// ===== 赤潮：地図・統計・グラフ・フィルタ =====
+
+// 赤潮ビュー全体を（フィルタ後データで）描画
+function renderRedtideView() {
+    const data = getFilteredRedtide();
+    renderTable('redtide', data);
+    renderRedtideStats(data);
+    renderRedtideChart(data);
+    renderRedtideMap(data);
+}
+
+// 一覧地図：フィルタ後の各記録をマーカー＋範囲円で描画
+function renderRedtideMap(data) {
+    const mapEl = document.getElementById('redtideMap');
+    if (!mapEl || typeof L === 'undefined') return;
+
+    if (!redtideMaps.list) {
+        redtideMaps.list = L.map('redtideMap').setView(REDTIDE_DEFAULT_CENTER, REDTIDE_DEFAULT_ZOOM);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 18,
+            attribution: '&copy; OpenStreetMap contributors'
+        }).addTo(redtideMaps.list);
+        redtideMaps.listLayers = L.layerGroup().addTo(redtideMaps.list);
+    }
+    redtideMaps.list.invalidateSize();
+    redtideMaps.listLayers.clearLayers();
+
+    const points = [];
+    data.forEach(item => {
+        const lat = Number(item.latitude), lng = Number(item.longitude);
+        if (!isFinite(lat) || !isFinite(lng)) return;
+        const color = REDTIDE_COLORS[item.seaColor] || REDTIDE_COLORS.default;
+        const radiusM = Math.max(Number(item.radiusKm) || 0, 0.1) * 1000;
+
+        L.circle([lat, lng], { radius: radiusM, color, fillColor: color, fillOpacity: 0.2, weight: 1 })
+            .addTo(redtideMaps.listLayers);
+        const marker = L.circleMarker([lat, lng], { radius: 6, color, fillColor: color, fillOpacity: 0.9, weight: 1 })
+            .addTo(redtideMaps.listLayers);
+
+        const d = new Date(item.timestamp);
+        const dateStr = `${d.getMonth() + 1}/${d.getDate()}`;
+        marker.bindPopup(
+            `<strong>${escapeHtml(dateStr)}</strong><br>` +
+            `種類: ${escapeHtml(String(item.species ?? '-'))}<br>` +
+            `細胞密度: ${escapeHtml(String(item.cellDensity ?? '-'))} cells/mL<br>` +
+            `斃死数: ${escapeHtml(String(item.deadCount ?? '-'))} 尾<br>` +
+            `半径: ${escapeHtml(String(item.radiusKm ?? '-'))} km`
+        );
+        points.push([lat, lng]);
+    });
+
+    if (points.length) {
+        redtideMaps.list.fitBounds(points, { padding: [30, 30], maxZoom: 10 });
+    } else {
+        redtideMaps.list.setView(REDTIDE_DEFAULT_CENTER, REDTIDE_DEFAULT_ZOOM);
+    }
+}
+
+// 暫定スタブ（Task 3 で実装）
+function renderRedtideStats(data) {}
+// 暫定スタブ（Task 4 で実装）
+function renderRedtideChart(data) {}
+// 暫定スタブ（Task 5 で実装：まずは全期間を返す）
+function getFilteredRedtide() { return dataStore.redtide; }
 
 // 全データをレンダリング
 function renderAllData() {
@@ -462,10 +544,10 @@ function renderCategory(category) {
     renderStats(category);
 }
 
-// テーブルをレンダリング
-function renderTable(category) {
+// テーブルをレンダリング（dataOverride 指定時はそれを使う＝赤潮のフィルタ後配列）
+function renderTable(category, dataOverride) {
     const tbody = document.getElementById(`${category}-table-body`);
-    const data = dataStore[category];
+    const data = dataOverride !== undefined ? dataOverride : dataStore[category];
     const nonImageFields = dataFields[category].filter(f => f.type !== 'image');
     const imageFields = dataFields[category].filter(f => f.type === 'image');
     const totalCols = 1 + nonImageFields.length + imageFields.length + 1;
@@ -542,6 +624,7 @@ function changePage(category, page) {
 
 // チャートをレンダリング
 function renderChart(category) {
+    if (category === 'redtide') return; // 赤潮は専用の renderRedtideChart を使う
     const canvas = document.getElementById(`${category}Chart`);
     if (!canvas) return; // グラフ未設置のカテゴリ（例: 赤潮）はスキップ
     const data = dataStore[category];
@@ -599,6 +682,7 @@ function renderChart(category) {
 
 // 統計情報をレンダリング
 function renderStats(category) {
+    if (category === 'redtide') return; // 赤潮は専用の renderRedtideStats を使う
     const statsDiv = document.getElementById(`${category}-stats`);
     if (!statsDiv) return; // 統計カード未設置のカテゴリ（例: 赤潮）はスキップ
     const data = dataStore[category];
