@@ -732,6 +732,21 @@ function updateRedtidePickerCircle(prefix) {
     }
 }
 
+// 赤潮の緯度経度バリデーション（prefix は 'add' / 'edit'）
+function validateRedtideInputs(prefix) {
+    const lat = parseFloat(document.getElementById(`${prefix}-latitude`).value);
+    const lng = parseFloat(document.getElementById(`${prefix}-longitude`).value);
+    if (!isFinite(lat) || !isFinite(lng)) {
+        showAlert('warning', '地図で発生地点を指定してください');
+        return false;
+    }
+    if (lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+        showAlert('warning', '緯度・経度の値が範囲外です');
+        return false;
+    }
+    return true;
+}
+
 // フィルタUIの適用/解除
 function applyRedtideFilter() {
     redtideFilter.start = document.getElementById('redtide-filter-start').value;
@@ -1000,6 +1015,7 @@ function showAddModal(category) {
 
 // データを追加（SQLite INSERT）
 function addData(category) {
+    if (category === 'redtide' && !validateRedtideInputs('add')) return;
     const id = Date.now() + Math.random();
     const timestamp = document.getElementById('add-timestamp').value;
     const fields = ['id', 'timestamp', ...dataFields[category].map(f => f.name)];
@@ -1092,6 +1108,7 @@ function editData(category, id) {
 
 // データを更新（SQLite UPDATE）
 function updateData(category, id) {
+    if (category === 'redtide' && !validateRedtideInputs('edit')) return;
     const timestamp = document.getElementById('edit-timestamp').value;
     const setClauses = ['timestamp = ?'];
     const values = [timestamp];
