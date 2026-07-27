@@ -184,8 +184,8 @@ const dataFields = {
         { name: 'maintenanceCost', label: '設備維持費(円)', type: 'number', step: '1' },
         { name: 'revenue', label: '売上(円)', type: 'number', step: '1' }
     ],
-    // 赤潮データ（独立ビュー）。緯度・経度・半径は将来の地図ピッカーで入力予定だが、
-    // 現フェーズでは通常の数値入力として扱う。
+    // 赤潮データ（独立ビュー）。latitude/longitude/radiusKm はモーダルの地図ピッカー＋
+    // スライダーで入力する（REDTIDE_PICKER_FIELDS で汎用フォームから除外）。
     redtide: [
         { name: 'species', label: 'プランクトン種類', type: 'select', options: ['シャットネラ', 'カレニア', '夜光虫', 'ヘテロカプサ', 'その他'] },
         { name: 'cellDensity', label: '細胞密度(cells/mL)', type: 'number', step: '1' },
@@ -645,6 +645,93 @@ function getFilteredRedtide() {
     });
 }
 
+// ピッカー対象フィールド（汎用フォームループから除外し、地図ピッカーで入力）
+const REDTIDE_PICKER_FIELDS = ['latitude', 'longitude', 'radiusKm'];
+
+// モーダル内 位置ピッカーのHTML（prefix は 'add' / 'edit'）
+function redtidePickerHtml(prefix, lat, lng, radius) {
+    const latVal = isFinite(Number(lat)) && lat !== null ? Number(lat) : '';
+    const lngVal = isFinite(Number(lng)) && lng !== null ? Number(lng) : '';
+    const rad = isFinite(Number(radius)) && radius !== null ? Number(radius) : 1;
+    return `
+        <div class="form-group">
+            <label>発生地点（地図をクリックして指定）</label>
+            <div id="${prefix}-redtidePickerMap" class="redtide-picker-map"></div>
+            <div class="redtide-latlng-row">
+                <input type="number" id="${prefix}-latitude" step="0.000001" placeholder="緯度" value="${latVal}" readonly required>
+                <input type="number" id="${prefix}-longitude" step="0.000001" placeholder="経度" value="${lngVal}" readonly required>
+            </div>
+        </div>
+        <div class="form-group">
+            <label>広がり半径(km): <span id="${prefix}-radius-display">${rad}</span></label>
+            <input type="range" id="${prefix}-radiusKm" min="0.1" max="50" step="0.1" value="${rad}"
+                oninput="onRedtideRadiusInput('${prefix}')">
+        </div>
+    `;
+}
+
+// ピッカー地図を（再）初期化
+function initRedtidePicker(prefix, lat, lng, radius) {
+    const el = document.getElementById(`${prefix}-redtidePickerMap`);
+    if (!el || typeof L === 'undefined') return;
+
+    if (redtideMaps.picker) { redtideMaps.picker.remove(); }
+    redtideMaps.picker = null;
+    redtideMaps.pickerMarker = null;
+    redtideMaps.pickerCircle = null;
+
+    const hasPoint = lat !== null && lng !== null && isFinite(Number(lat)) && isFinite(Number(lng));
+    const center = hasPoint ? [Number(lat), Number(lng)] : REDTIDE_DEFAULT_CENTER;
+    const map = L.map(el).setView(center, hasPoint ? 9 : REDTIDE_DEFAULT_ZOOM);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 18,
+        attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(map);
+    redtideMaps.picker = map;
+
+    if (hasPoint) setRedtidePickerPoint(prefix, Number(lat), Number(lng));
+    map.on('click', (e) => setRedtidePickerPoint(prefix, e.latlng.lat, e.latlng.lng));
+    setTimeout(() => map.invalidateSize(), 150);
+}
+
+// クリック地点をマーカー＋緯度経度入力へ反映
+function setRedtidePickerPoint(prefix, lat, lng) {
+    const map = redtideMaps.picker;
+    if (!map) return;
+    document.getElementById(`${prefix}-latitude`).value = lat.toFixed(6);
+    document.getElementById(`${prefix}-longitude`).value = lng.toFixed(6);
+    if (redtideMaps.pickerMarker) {
+        redtideMaps.pickerMarker.setLatLng([lat, lng]);
+    } else {
+        redtideMaps.pickerMarker = L.circleMarker([lat, lng], {
+            radius: 6, color: '#c0392b', fillColor: '#c0392b', fillOpacity: 0.9, weight: 1
+        }).addTo(map);
+    }
+    updateRedtidePickerCircle(prefix);
+}
+
+// スライダー入力：半径表示とプレビュー円を更新
+function onRedtideRadiusInput(prefix) {
+    document.getElementById(`${prefix}-radius-display`).textContent =
+        document.getElementById(`${prefix}-radiusKm`).value;
+    updateRedtidePickerCircle(prefix);
+}
+
+// プレビュー円を更新（マーカー未設置なら何もしない）
+function updateRedtidePickerCircle(prefix) {
+    const map = redtideMaps.picker;
+    if (!map || !redtideMaps.pickerMarker) return;
+    const center = redtideMaps.pickerMarker.getLatLng();
+    const km = parseFloat(document.getElementById(`${prefix}-radiusKm`).value) || 0.1;
+    if (redtideMaps.pickerCircle) {
+        redtideMaps.pickerCircle.setLatLng(center).setRadius(km * 1000);
+    } else {
+        redtideMaps.pickerCircle = L.circle(center, {
+            radius: km * 1000, color: '#c0392b', fillColor: '#c0392b', fillOpacity: 0.2, weight: 1
+        }).addTo(map);
+    }
+}
+
 // フィルタUIの適用/解除
 function applyRedtideFilter() {
     redtideFilter.start = document.getElementById('redtide-filter-start').value;
@@ -865,7 +952,9 @@ function showAddModal(category) {
             <label>日時</label>
             <input type="datetime-local" id="add-timestamp" required value="${new Date().toISOString().slice(0, 16)}">
         </div>
-    ` + dataFields[category].map(field => {
+    ` + dataFields[category]
+        .filter(field => !(category === 'redtide' && REDTIDE_PICKER_FIELDS.includes(field.name)))
+        .map(field => {
         if (field.type === 'select') {
             return `
                 <div class="form-group">
@@ -897,9 +986,10 @@ function showAddModal(category) {
                 </div>
             `;
         }
-    }).join('');
+    }).join('') + (category === 'redtide' ? redtidePickerHtml('add', null, null, 1) : '');
 
     modal.classList.add('active');
+    if (category === 'redtide') initRedtidePicker('add', null, null, 1);
 
     const form = document.getElementById('addForm');
     form.onsubmit = (e) => {
@@ -949,7 +1039,9 @@ function editData(category, id) {
             <label>日時</label>
             <input type="datetime-local" id="edit-timestamp" required value="${timestamp}">
         </div>
-    ` + dataFields[category].map(field => {
+    ` + dataFields[category]
+        .filter(field => !(category === 'redtide' && REDTIDE_PICKER_FIELDS.includes(field.name)))
+        .map(field => {
         if (field.type === 'select') {
             return `
                 <div class="form-group">
@@ -984,9 +1076,12 @@ function editData(category, id) {
                 </div>
             `;
         }
-    }).join('');
+    }).join('') + (category === 'redtide'
+        ? redtidePickerHtml('edit', item.latitude, item.longitude, item.radiusKm)
+        : '');
 
     modal.classList.add('active');
+    if (category === 'redtide') initRedtidePicker('edit', item.latitude, item.longitude, item.radiusKm);
 
     const form = document.getElementById('editForm');
     form.onsubmit = (e) => {
