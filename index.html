@@ -61,7 +61,7 @@
             <button class="tab" data-category="biology">生物データ</button>
             <button class="tab" data-category="operation">運営データ</button>
             <button class="tab" data-category="economy">経済データ</button>
-            <button class="tab" data-category="redtide">🌊 赤潮データ</button>
+            <button class="tab" data-category="redtide">赤潮データ</button>
         </div>
 
         <div class="content">
@@ -258,6 +258,8 @@
                 <p id="redtideMapDesc" class="redtide-map-desc">
                     この地図の内容は下の一覧表でも確認できます。<span id="redtide-map-count" aria-live="polite"></span>
                 </p>
+                <button type="button" class="map-lock-btn" id="redtideMapLock" aria-pressed="false"
+                    onclick="toggleRedtideMapDrag(this, 'list')" hidden>🔒 地図を動かす</button>
                 <div id="redtideMap" class="redtide-map" role="application"
                     aria-label="赤潮の発生地点の地図" aria-describedby="redtideMapDesc"></div>
                 <ul class="redtide-legend">

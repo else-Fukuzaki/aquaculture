@@ -184,6 +184,7 @@ header h1 {
 .tab {
     position: relative;
     padding: 10px 18px;
+    min-height: 44px;
     cursor: pointer;
     border: 1px solid transparent;
     background: none;
@@ -284,6 +285,15 @@ header h1 {
     font-size: 12px;
 }
 
+/* 表の操作ボタン・ページ送りは指で押す想定なのでタップ領域を44px確保する */
+@media (max-width: 768px) {
+    .btn-small {
+        min-height: 44px;
+        padding: 10px 16px;
+        font-size: 13px;
+    }
+}
+
 /* =============================================
    統計カード — 泡白の面にアクアのアクセントバー
    ============================================= */
@@ -381,6 +391,9 @@ canvas {
 .data-table {
     width: 100%;
     overflow-x: auto;
+    /* スマホで横スクロールを慣性付きにし、ページの縦スクロールへ連鎖させない */
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-x: contain;
     margin-top: 20px;
     border-radius: var(--radius-sm);
     border: 1px solid var(--line);
@@ -487,13 +500,16 @@ tbody tr:last-child td {
 }
 
 .modal-content {
+    --modal-pad: 30px;
     background: var(--foam);
-    padding: 30px;
+    padding: var(--modal-pad);
     border-radius: var(--radius);
     max-width: 500px;
     width: 100%;
     max-height: 90vh;
     overflow-y: auto;
+    /* モーダル内のスクロールを背後のページへ伝播させない（スマホで背景が動く問題の対策） */
+    overscroll-behavior: contain;
     box-shadow: var(--shadow);
     animation: surface 0.3s ease;
 }
@@ -528,13 +544,53 @@ tbody tr:last-child td {
 .form-group textarea {
     width: 100%;
     padding: 12px 14px;
+    /* タップ領域44px確保（スマホ入力前提） */
+    min-height: 44px;
     border: 1.5px solid var(--line);
     border-radius: var(--radius-sm);
     font-family: inherit;
-    font-size: 14px;
+    /* 16px未満だと iOS Safari がフォーカス時に自動ズームするため下げない */
+    font-size: 16px;
     color: var(--abyss);
     background: #fff;
     transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+/* 半径スライダー：指で掴めるサイズにする */
+.form-group input[type="range"] {
+    padding: 0;
+    border: none;
+    background: transparent;
+    -webkit-appearance: none;
+    appearance: none;
+}
+.form-group input[type="range"]::-webkit-slider-runnable-track {
+    height: 6px;
+    border-radius: 3px;
+    background: #cfe0e0;
+}
+.form-group input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 30px;
+    height: 30px;
+    margin-top: -12px;
+    border-radius: 50%;
+    border: 2px solid #fff;
+    background: var(--tide);
+    box-shadow: 0 1px 3px rgba(5, 42, 48, 0.3);
+}
+.form-group input[type="range"]::-moz-range-track {
+    height: 6px;
+    border-radius: 3px;
+    background: #cfe0e0;
+}
+.form-group input[type="range"]::-moz-range-thumb {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    border: 2px solid #fff;
+    background: var(--tide);
 }
 
 .form-group input:focus,
@@ -545,10 +601,20 @@ tbody tr:last-child td {
     box-shadow: 0 0 0 3px rgba(13, 139, 147, 0.15);
 }
 
+/* 送信/キャンセルは常に画面内に残す。
+   赤潮モーダルは地図を含むため中身が表示領域の2倍以上あり、
+   スクロールしないと保存ボタンに届かない（スマホで実測: 内容1505px / 表示598px）。 */
 .modal-actions {
     display: flex;
     gap: 12px;
-    margin-top: 24px;
+    position: sticky;
+    /* コンテナの下paddingぶん下げて、帯の下から本文がのぞかないようにする */
+    bottom: calc(-1 * var(--modal-pad));
+    z-index: 2;
+    margin: 24px calc(-1 * var(--modal-pad)) calc(-1 * var(--modal-pad));
+    padding: 14px var(--modal-pad);
+    background: var(--foam);
+    border-top: 1px solid var(--line);
 }
 
 /* =============================================
@@ -807,7 +873,15 @@ tbody tr:last-child td {
     }
 
     .modal-content {
-        padding: 22px;
+        --modal-pad: 22px;
+    }
+
+    /* 6タブは390px幅に収まらず、赤潮タブ(6番目)が初期表示で画面外になる。
+       横スクロールに頼らず折り返して全タブを見せる。 */
+    .tabs {
+        flex-wrap: wrap;
+        overflow-x: visible;
+        gap: 6px 6px;
     }
 
     table {
@@ -816,6 +890,13 @@ tbody tr:last-child td {
 
     th, td {
         padding: 10px 12px;
+    }
+
+    /* Leafletのズームボタンは既定30pxでタップしづらい */
+    .leaflet-touch .leaflet-bar a {
+        width: 44px;
+        height: 44px;
+        line-height: 44px;
     }
 }
 
@@ -925,7 +1006,10 @@ tbody tr:last-child td {
     flex-wrap: wrap;
 }
 .redtide-filter-row input[type="date"] {
-    padding: 6px 10px;
+    padding: 10px 12px;
+    min-height: 44px;
+    font-family: inherit;
+    font-size: 16px; /* iOS Safari の自動ズーム防止 */
     border: 1px solid #cfe0e0;
     border-radius: 8px;
 }
@@ -1003,6 +1087,56 @@ tbody tr:last-child td {
     font-size: 13px;
     color: #0a4650;
     margin-top: 8px;
+}
+
+/* ===== 赤潮：地図のドラッグ切替ボタン（スマホのみ表示） ===== */
+/* Leafletは1本指ドラッグを地図パンに使うため、地図の上ではページもモーダルも
+   スクロールできない。スマホでは既定でドラッグを切り、このボタンで明示的に有効化する。 */
+.map-lock-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 44px;
+    padding: 10px 16px;
+    margin-bottom: 8px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: #fff;
+    color: var(--abyss);
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+}
+.map-lock-btn[aria-pressed="true"] {
+    background: var(--tide);
+    border-color: var(--tide);
+    color: #fff;
+}
+
+/* ===== 赤潮：狭幅端末（スマホ実機での操作性） ===== */
+@media (max-width: 480px) {
+    .redtide-map {
+        height: 260px;
+    }
+    .redtide-picker-map {
+        /* モーダル内で地図が占める割合を下げ、スクロールできる帯を確保する */
+        height: 200px;
+    }
+    .redtide-latlng-row {
+        flex-direction: column;
+        gap: 10px;
+    }
+    .redtide-filter-row {
+        gap: 6px 10px;
+    }
+    .redtide-filter-row input[type="date"] {
+        flex: 1 1 auto;
+        min-width: 0;
+    }
+    .redtide-legend {
+        gap: 10px 14px;
+    }
 }
 
 /* ===== フォーカス可視性（キーボード操作時のみ枠を出す） ===== */

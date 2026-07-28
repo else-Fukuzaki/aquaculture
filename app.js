@@ -472,19 +472,61 @@ function renderRedtideView() {
     renderRedtideMap(data);
 }
 
+// スマホ判定（Leafletの判定を使い、独自のUA解析はしない）
+function isTouchMapEnv() {
+    return typeof L !== 'undefined' && !!L.Browser.mobile;
+}
+
+// スマホでは地図の1本指ドラッグを初期無効にする。
+// 有効なままだと地図の上でページ／モーダルをスクロールできず、
+// 赤潮モーダルでは保存ボタンに到達できなくなる（2本指のピンチズームは残す）。
+function touchSafeMapOptions() {
+    return isTouchMapEnv() ? { dragging: false } : {};
+}
+
+// 「地図を動かす」ボタンの初期化（スマホ以外では出さない）
+function setupMapLockBtn(btnId) {
+    const btn = document.getElementById(btnId);
+    if (!btn) return;
+    btn.hidden = !isTouchMapEnv();
+    btn.setAttribute('aria-pressed', 'false');
+    btn.textContent = '🔒 地図を動かす';
+}
+
+// ドラッグ操作のON/OFFを切り替える
+function toggleRedtideMapDrag(btn, which) {
+    const map = which === 'list' ? redtideMaps.list : redtideMaps.picker;
+    if (!map || !map.dragging) return;
+    const enable = !map.dragging.enabled();
+    if (enable) {
+        map.dragging.enable();
+    } else {
+        map.dragging.disable();
+    }
+    btn.setAttribute('aria-pressed', String(enable));
+    btn.textContent = enable ? '🔓 地図を固定する' : '🔒 地図を動かす';
+}
+
+// モーダル表示中に背後のページがスクロールしないようにする
+function setBodyScrollLock(locked) {
+    document.body.style.overflow = locked ? 'hidden' : '';
+}
+
 // 一覧地図：フィルタ後の各記録をマーカー＋範囲円で描画
 function renderRedtideMap(data) {
     const mapEl = document.getElementById('redtideMap');
     if (!mapEl || typeof L === 'undefined') return;
 
     if (!redtideMaps.list) {
-        redtideMaps.list = L.map('redtideMap').setView(REDTIDE_DEFAULT_CENTER, REDTIDE_DEFAULT_ZOOM);
+        redtideMaps.list = L.map('redtideMap', touchSafeMapOptions())
+            .setView(REDTIDE_DEFAULT_CENTER, REDTIDE_DEFAULT_ZOOM);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             maxZoom: 18,
             attribution: '&copy; OpenStreetMap contributors'
         }).addTo(redtideMaps.list);
         redtideMaps.listLayers = L.layerGroup().addTo(redtideMaps.list);
         redtideMaps.shouldFitBounds = true;
+        setupMapLockBtn('redtideMapLock');
     }
     redtideMaps.list.invalidateSize();
     redtideMaps.listLayers.clearLayers();
@@ -669,8 +711,11 @@ function redtidePickerHtml(prefix, lat, lng, radius) {
         <fieldset class="form-group redtide-picker-fieldset">
             <legend>発生地点</legend>
             <p id="${prefix}-picker-help" class="redtide-picker-help">
-                地図をクリックするか、緯度・経度を直接入力してください。緯度は -90〜90、経度は -180〜180 です。
+                地図をタップするか、緯度・経度を直接入力してください。緯度は -90〜90、経度は -180〜180 です。
+                地図を動かしたいときは「地図を動かす」を押してください（押していない間は画面を上下にスクロールできます）。
             </p>
+            <button type="button" class="map-lock-btn" id="${prefix}-pickerLock" aria-pressed="false"
+                onclick="toggleRedtideMapDrag(this, 'picker')" hidden>🔒 地図を動かす</button>
             <div id="${prefix}-redtidePickerMap" class="redtide-picker-map" role="application"
                 aria-label="発生地点を選ぶ地図" aria-describedby="${prefix}-picker-help"></div>
             <div class="redtide-latlng-row">
@@ -718,12 +763,13 @@ function initRedtidePicker(prefix, lat, lng, radius) {
 
     const hasPoint = lat !== null && lng !== null && isFinite(Number(lat)) && isFinite(Number(lng));
     const center = hasPoint ? [Number(lat), Number(lng)] : REDTIDE_DEFAULT_CENTER;
-    const map = L.map(el).setView(center, hasPoint ? 9 : REDTIDE_DEFAULT_ZOOM);
+    const map = L.map(el, touchSafeMapOptions()).setView(center, hasPoint ? 9 : REDTIDE_DEFAULT_ZOOM);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         maxZoom: 18,
         attribution: '&copy; OpenStreetMap contributors'
     }).addTo(map);
     redtideMaps.picker = map;
+    setupMapLockBtn(`${prefix}-pickerLock`);
 
     if (hasPoint) setRedtidePickerPoint(prefix, Number(lat), Number(lng));
     // 地図を東西にパンすると e.latlng.lng は ±180 を超えるため wrap() して正規化する
@@ -1071,6 +1117,7 @@ function showAddModal(category) {
     }).join('') + (category === 'redtide' ? redtidePickerHtml('add', null, null, 1) : '');
 
     modal.classList.add('active');
+    setBodyScrollLock(true);
     if (category === 'redtide') initRedtidePicker('add', null, null, 1);
 
     const form = document.getElementById('addForm');
@@ -1164,6 +1211,7 @@ function editData(category, id) {
         : '');
 
     modal.classList.add('active');
+    setBodyScrollLock(true);
     if (category === 'redtide') initRedtidePicker('edit', item.latitude, item.longitude, item.radiusKm);
 
     const form = document.getElementById('editForm');
@@ -1245,11 +1293,13 @@ function exportData(category) {
 // モーダルを閉じる
 function closeModal() {
     document.getElementById('addModal').classList.remove('active');
+    setBodyScrollLock(false);
     destroyRedtidePicker();
 }
 
 function closeEditModal() {
     document.getElementById('editModal').classList.remove('active');
+    setBodyScrollLock(false);
     destroyRedtidePicker();
 }
 
@@ -1341,15 +1391,10 @@ function closePhotoModal() {
     document.getElementById('photoModal').classList.remove('active');
 }
 
-// モーダルの外側クリックで閉じる
-document.getElementById('addModal').addEventListener('click', function(e) {
-    if (e.target === this) closeModal();
-});
-
-document.getElementById('editModal').addEventListener('click', function(e) {
-    if (e.target === this) closeEditModal();
-});
-
+// 入力フォームのモーダル（追加・編集）は外側タップで閉じない。
+// スマホでは地図の横に数十pxしか余白がなく、スクロールしようとして誤タップすると
+// 入力内容がすべて消えるため。閉じるのは「キャンセル」ボタンに限定する。
+// 写真ビューアーは閲覧のみで失うものがないので外側タップで閉じてよい。
 document.getElementById('photoModal').addEventListener('click', function(e) {
     if (e.target === this) closePhotoModal();
 });
