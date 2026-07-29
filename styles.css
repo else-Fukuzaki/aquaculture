@@ -149,6 +149,15 @@ header h1 {
     letter-spacing: 0.02em;
 }
 
+/* 読み込まれている app.js の版を出す。実機の切り分け用なので目立たせない */
+.app-version {
+    margin-top: 8px;
+    text-align: center;
+    font-size: 11px;
+    letter-spacing: 0.04em;
+    color: rgba(191, 234, 229, 0.45);
+}
+
 .btn-logout {
     background: rgba(191, 234, 229, 0.12);
     color: #eafaf8;

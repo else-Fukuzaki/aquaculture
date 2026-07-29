@@ -6,7 +6,9 @@
     <title>養殖漁業管理システム</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
         integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
-    <link rel="stylesheet" href="styles.css">
+    <!-- ?v= はキャッシュ対策。サーバーへ上げ直したのにスマホだけ古い画面のままになるのを防ぐため、
+         html/css/js を更新したらこの日付を必ず一緒に上げる（app.js の APP_VERSION も同じ値にする） -->
+    <link rel="stylesheet" href="styles.css?v=20260729">
 </head>
 <body>
 
@@ -53,6 +55,8 @@
                 <span id="headerUserEmail" class="header-user-email"></span>
                 <button class="btn btn-logout" onclick="logout()">ログアウト</button>
             </div>
+            <!-- 端末が読み込んでいる app.js の版。実機で「上げ直したのに直らない」ときの切り分け用 -->
+            <p class="app-version" id="appVersion"></p>
         </header>
 
         <div class="tabs">
@@ -353,6 +357,6 @@
         integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
     <script src="https://cdn.jsdelivr.net/npm/sql.js@1.10.2/dist/sql-wasm.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-    <script src="app.js"></script>
+    <script src="app.js?v=20260729"></script>
 </body>
 </html>

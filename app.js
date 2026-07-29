@@ -1,3 +1,7 @@
+// このファイルの版。index.html の ?v= と同じ値にすること。
+// 実機で「サーバーに上げ直したのに古い挙動のまま」を切り分けるため画面に出す。
+const APP_VERSION = '20260729';
+
 // =============================================
 // 認証（ローカル・メール＋パスワード）
 // =============================================
@@ -63,6 +67,8 @@ function showMainApp(email) {
     document.getElementById('authScreen').style.display = 'none';
     document.getElementById('mainApp').style.display = 'block';
     document.getElementById('headerUserEmail').textContent = email;
+    const versionEl = document.getElementById('appVersion');
+    if (versionEl) versionEl.textContent = `ver ${APP_VERSION}`;
     initDB();
 }
 
